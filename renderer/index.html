@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' http: https: data:; media-src 'self' http: https: blob:; connect-src 'self' http: https: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vela Player</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<main id="login" class="screen">
+  <form id="loginForm" class="login-card" autocomplete="off">
+    <div class="logo">⛵</div>
+    <h1>Vela Player</h1>
+    <p class="sub">Entre com os dados do seu serviço.</p>
+    <div id="picker" class="hidden"></div>
+    <div id="newFields">
+    <label>Host<input id="host" placeholder="http://servidor.com:8080" spellcheck="false" required></label>
+    <label>Usuário<input id="user" spellcheck="false" required></label>
+    <label>Senha<input id="pass" type="password" required></label>
+    <label class="check"><input id="remember" type="checkbox" checked> Lembrar neste computador</label>
+    <button id="loginBtn" class="primary" type="submit">Entrar</button>
+    </div>
+    <p id="loginErr" class="err" role="alert"></p>
+  </form>
+</main>
+
+<div id="app" class="screen hidden">
+  <aside id="side">
+    <div class="brand">⛵ Vela</div>
+    <nav id="nav">
+      <button data-tab="home" class="focusable">🏠 Início</button>
+      <button data-tab="live" class="focusable">📺 Ao vivo</button>
+      <button data-tab="movie" class="focusable">🎬 Filmes</button>
+      <button data-tab="series" class="focusable">🍿 Séries</button>
+      <button data-tab="search" class="focusable">🔎 Busca geral</button>
+      <button data-tab="favs" class="focusable">⭐ Favoritos</button>
+      <button data-tab="history" class="focusable">🕘 Histórico</button>
+    </nav>
+    <div class="grow"></div>
+    <div id="acct" class="acct"></div>
+    <button id="settingsBtn" class="ghost focusable">⚙ Configurações</button>
+    <button id="logout" class="ghost focusable">Trocar perfil</button>
+  </aside>
+  <section id="content">
+    <header>
+      <input id="search" type="search" placeholder="Pesquisar nesta categoria…" class="focusable">
+      <select id="sort" class="focusable hidden"><option value="">Ordem do servidor</option><option value="az">A–Z</option><option value="recent">Mais recentes</option><option value="rating">Melhor avaliação</option></select>
+      <span id="count" class="muted"></span>
+    </header>
+    <div class="body">
+      <div id="cats"></div>
+      <div id="gridWrap"><div id="home" class="hidden"></div><div id="grid"></div><div id="state" class="muted"></div></div>
+    </div>
+  </section>
+</div>
+
+<div id="detail" class="overlay hidden" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <button id="detailClose" class="ghost close focusable">✕</button>
+    <div class="dhead"><img id="dposter" alt=""><div><h2 id="dtitle"></h2><p id="dmeta" class="muted"></p><p id="dplot"></p><p id="dcast" class="muted"></p>
+      <div class="row"><button id="dplay" class="primary focusable">▶ Assistir</button><button id="dfav" class="ghost focusable">☆ Favoritar</button></div></div></div>
+    <div id="seasons"></div>
+    <div id="episodes"></div>
+  </div>
+</div>
+
+<div id="modal" class="overlay hidden" role="dialog" aria-modal="true"><div class="sheet small" id="modalBody"></div></div>
+
+<div id="player" class="hidden">
+  <video id="video" controls playsinline></video>
+  <div id="ptop"><button id="pback" class="focusable">← Voltar</button><span id="ptitle"></span><span class="grow"></span>
+    <button id="pfav" class="focusable">☆</button><button id="pmpv" class="focusable hidden">Player avançado</button></div>
+  <div id="pinfo" class="hidden"></div><div id="pnum" class="hidden"></div>
+  <div id="pmsg"></div>
+</div>
+
+<script src="vendor/hls.min.js"></script>
+<script src="vendor/mpegts.js"></script>
+<script src="core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

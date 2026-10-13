@@ -1,0 +1,47 @@
+{
+  "name": "vela-player",
+  "productName": "Vela Player",
+  "version": "0.3.0",
+  "description": "Vela Player - player de mídia com login Xtream Codes, reprodutor embutido",
+  "main": "main.js",
+  "author": "Vela Player",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "vendor": "node scripts/copy-vendor.js",
+    "start": "npm run vendor && electron .",
+    "test": "node test/core.test.js",
+    "dist": "npm run vendor && electron-builder --win --x64 --publish never"
+  },
+  "dependencies": {
+    "hls.js": "1.5.17",
+    "mpegts.js": "1.7.3"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "br.velaplayer.app",
+    "productName": "Vela Player",
+    "copyright": "Vela Player",
+    "directories": { "output": "dist" },
+    "files": ["main.js", "preload.js", "renderer/**/*", "package.json"],
+    "extraResources": [{ "from": "vendor-bin/mpv", "to": "mpv", "filter": ["**/*", "!.gitkeep"] }],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Vela Player",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "Instalar-Vela-Player.${ext}"
+    }
+  }
+}
