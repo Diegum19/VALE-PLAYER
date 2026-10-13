@@ -1,0 +1,85 @@
+name: Gerar instalador Windows
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: Testar e compilar instalador
+    runs-on: windows-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependências do projeto
+        run: npm install --no-audit --no-fund
+
+      - name: Executar testes
+        run: npm test
+
+      - name: Incluir reprodutor mpv no instalador
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/shinchiro/mpv-winbuild-cmake/releases/latest' -Headers @{ 'User-Agent' = 'VelaPlayer-Windows-Build' }
+          $asset = $release.assets | Where-Object { $_.name -match '^mpv-x86_64-\d{8}-git-.*\.7z$' } | Select-Object -First 1
+          if (-not $asset) {
+            throw 'Não foi encontrado um pacote mpv para Windows x64 na última versão.'
+          }
+
+          $archive = Join-Path $env:RUNNER_TEMP 'mpv-windows.7z'
+          $extract = Join-Path $env:RUNNER_TEMP 'mpv-extract'
+          $destination = Join-Path $env:GITHUB_WORKSPACE 'vendor-bin/mpv'
+          New-Item -ItemType Directory -Force -Path $extract, $destination | Out-Null
+
+          Write-Host "Baixando $($asset.name)"
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $archive
+          $sevenZip = (Get-Command 7z -ErrorAction Stop).Source
+          & $sevenZip x $archive "-o$extract" -y | Out-Host
+          if ($LASTEXITCODE -ne 0) { throw 'Não foi possível extrair o pacote mpv.' }
+
+          $mpvExe = Get-ChildItem -Path $extract -Filter 'mpv.exe' -File -Recurse | Select-Object -First 1
+          if (-not $mpvExe) { throw 'O pacote baixado não contém mpv.exe.' }
+          Copy-Item -Path (Join-Path $mpvExe.Directory.FullName '*') -Destination $destination -Recurse -Force
+          if (-not (Test-Path (Join-Path $destination 'mpv.exe'))) {
+            throw 'mpv.exe não foi copiado para vendor-bin/mpv.'
+          }
+          Write-Host 'Player avançado preparado para ser incluído no instalador.'
+
+      - name: Gerar instalador EXE
+        run: npm run dist
+
+      - name: Conferir artefato final
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:GITHUB_WORKSPACE 'dist/Instalar-Vela-Player.exe'
+          if (-not (Test-Path $installer)) {
+            Get-ChildItem -Path (Join-Path $env:GITHUB_WORKSPACE 'dist') -Recurse | Format-Table FullName, Length
+            throw 'O instalador Instalar-Vela-Player.exe não foi gerado.'
+          }
+          $hash = (Get-FileHash $installer -Algorithm SHA256).Hash
+          "SHA-256: $hash" | Set-Content -Path "$installer.sha256.txt" -Encoding ascii
+          Get-Item $installer | Format-List Name, Length
+          Write-Host "SHA-256: $hash"
+
+      - name: Disponibilizar instalador em Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vela-Player-Instalador-Windows-x64
+          path: |
+            dist/Instalar-Vela-Player.exe
+            dist/Instalar-Vela-Player.exe.sha256.txt
+          if-no-files-found: error
+          retention-days: 30
