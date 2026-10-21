@@ -29,34 +29,14 @@ jobs:
       - name: Executar testes
         run: npm test
 
-      - name: Incluir reprodutor mpv no instalador
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/shinchiro/mpv-winbuild-cmake/releases/latest' -Headers @{ 'User-Agent' = 'VelaPlayer-Windows-Build' }
-          $asset = $release.assets | Where-Object { $_.name -match '^mpv-x86_64-\d{8}-git-.*\.7z$' } | Select-Object -First 1
-          if (-not $asset) {
-            throw 'Não foi encontrado um pacote mpv para Windows x64 na última versão.'
-          }
+      - name: Verificar sintaxe do app
+        run: node --check renderer/app.js
 
-          $archive = Join-Path $env:RUNNER_TEMP 'mpv-windows.7z'
-          $extract = Join-Path $env:RUNNER_TEMP 'mpv-extract'
-          $destination = Join-Path $env:GITHUB_WORKSPACE 'vendor-bin/mpv'
-          New-Item -ItemType Directory -Force -Path $extract, $destination | Out-Null
+      - name: Verificar sintaxe do núcleo
+        run: node --check renderer/core.js
 
-          Write-Host "Baixando $($asset.name)"
-          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $archive
-          $sevenZip = (Get-Command 7z -ErrorAction Stop).Source
-          & $sevenZip x $archive "-o$extract" -y | Out-Host
-          if ($LASTEXITCODE -ne 0) { throw 'Não foi possível extrair o pacote mpv.' }
-
-          $mpvExe = Get-ChildItem -Path $extract -Filter 'mpv.exe' -File -Recurse | Select-Object -First 1
-          if (-not $mpvExe) { throw 'O pacote baixado não contém mpv.exe.' }
-          Copy-Item -Path (Join-Path $mpvExe.Directory.FullName '*') -Destination $destination -Recurse -Force
-          if (-not (Test-Path (Join-Path $destination 'mpv.exe'))) {
-            throw 'mpv.exe não foi copiado para vendor-bin/mpv.'
-          }
-          Write-Host 'Player avançado preparado para ser incluído no instalador.'
+      - name: Verificar sintaxe do Electron
+        run: node --check main.js
 
       - name: Gerar instalador EXE
         run: npm run dist
