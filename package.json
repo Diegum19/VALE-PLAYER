@@ -1,8 +1,8 @@
 {
   "name": "vela-player",
   "productName": "Vela Player",
-  "version": "0.3.2",
-  "description": "Vela Player - player multimídia com pôsteres antecipados e controles modernos",
+  "version": "0.3.3",
+  "description": "Vela Player - pôsteres corrigidos e reprodutor embutido com controles modernos",
   "main": "main.js",
   "author": "Vela Player",
   "license": "UNLICENSED",
@@ -33,16 +33,6 @@
       "preload.js",
       "renderer/**/*",
       "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": "vendor-bin/mpv",
-        "to": "mpv",
-        "filter": [
-          "**/*",
-          "!.gitkeep"
-        ]
-      }
     ],
     "win": {
       "target": [
