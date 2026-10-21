@@ -29,20 +29,20 @@
 
 <div id="app" class="screen hidden">
   <aside id="side">
-    <div class="brand">⛵ Vela</div>
+    <div class="brand"><span data-icon="sailboat"></span><span>Vela</span></div>
     <nav id="nav">
-      <button data-tab="home" class="focusable">🏠 Início</button>
-      <button data-tab="live" class="focusable">📺 Ao vivo</button>
-      <button data-tab="movie" class="focusable">🎬 Filmes</button>
-      <button data-tab="series" class="focusable">🍿 Séries</button>
-      <button data-tab="search" class="focusable">🔎 Busca geral</button>
-      <button data-tab="favs" class="focusable">⭐ Favoritos</button>
-      <button data-tab="history" class="focusable">🕘 Histórico</button>
+      <button data-tab="home" class="focusable"><span class="nav-icon" data-icon="home"></span><span>Início</span></button>
+      <button data-tab="live" class="focusable"><span class="nav-icon" data-icon="tv"></span><span>TV ao vivo</span></button>
+      <button data-tab="movie" class="focusable"><span class="nav-icon" data-icon="film"></span><span>Filmes</span></button>
+      <button data-tab="series" class="focusable"><span class="nav-icon" data-icon="clapperboard"></span><span>Séries</span></button>
+      <button data-tab="search" class="focusable"><span class="nav-icon" data-icon="search"></span><span>Busca geral</span></button>
+      <button data-tab="favs" class="focusable"><span class="nav-icon" data-icon="star"></span><span>Favoritos</span></button>
+      <button data-tab="history" class="focusable"><span class="nav-icon" data-icon="history"></span><span>Histórico</span></button>
     </nav>
     <div class="grow"></div>
     <div id="acct" class="acct"></div>
-    <button id="settingsBtn" class="ghost focusable">⚙ Configurações</button>
-    <button id="logout" class="ghost focusable">Trocar perfil</button>
+    <button id="settingsBtn" class="ghost focusable"><span data-icon="settings"></span><span>Configurações</span></button>
+    <button id="logout" class="ghost focusable"><span data-icon="users"></span><span>Trocar perfil</span></button>
   </aside>
   <section id="content">
     <header>
@@ -59,9 +59,9 @@
 
 <div id="detail" class="overlay hidden" role="dialog" aria-modal="true">
   <div class="sheet">
-    <button id="detailClose" class="ghost close focusable">✕</button>
+    <button id="detailClose" class="ghost close focusable" aria-label="Fechar"><span data-icon="close"></span></button>
     <div class="dhead"><img id="dposter" alt=""><div><h2 id="dtitle"></h2><p id="dmeta" class="muted"></p><p id="dplot"></p><p id="dcast" class="muted"></p>
-      <div class="row"><button id="dplay" class="primary focusable">▶ Assistir</button><button id="dfav" class="ghost focusable">☆ Favoritar</button></div></div></div>
+      <div class="row"><button id="dplay" class="primary focusable"><span data-icon="play"></span><span>Assistir</span></button><button id="dfav" class="ghost focusable"><span data-icon="star"></span><span>Favoritar</span></button></div></div></div>
     <div id="seasons"></div>
     <div id="episodes"></div>
   </div>
@@ -70,11 +70,13 @@
 <div id="modal" class="overlay hidden" role="dialog" aria-modal="true"><div class="sheet small" id="modalBody"></div></div>
 
 <div id="player" class="hidden">
-  <video id="video" controls playsinline></video>
-  <div id="ptop"><button id="pback" class="focusable">← Voltar</button><span id="ptitle"></span><span class="grow"></span>
-    <button id="pfav" class="focusable">☆</button><button id="pmpv" class="focusable hidden">Player avançado</button></div>
-  <div id="pinfo" class="hidden"></div><div id="pnum" class="hidden"></div>
-  <div id="pmsg"></div>
+  <video id="video" playsinline></video><div class="player-vignette" aria-hidden="true"></div>
+  <div id="ptop"><button id="pback" class="player-back focusable"><span data-icon="back"></span><span>Voltar</span></button><span id="ptitle"></span><span class="grow"></span><button id="pfav" class="icon-button focusable" aria-label="Adicionar aos favoritos"><span data-icon="star"></span></button><button id="pmpv" class="focusable hidden">Player avançado</button></div>
+  <div id="pinfo" class="hidden"></div><div id="pnum" class="hidden"></div><div id="pmsg" role="status" aria-live="polite"></div>
+  <div id="playerControls" class="player-controls"><div id="seekArea" class="seek-area"><input id="seek" class="seek-slider" type="range" min="0" max="1000" value="0" aria-label="Posição do vídeo"><div class="player-time"><span id="elapsedTime">0:00</span><span id="durationTime">0:00</span></div></div>
+    <div id="liveLabel" class="live-label hidden"><span class="live-dot"></span><span data-icon="radio"></span><span>AO VIVO</span></div>
+    <div class="player-controls-row"><div class="player-main-actions"><button id="playPause" class="player-action primary focusable" aria-label="Pausar"><span data-icon="pause"></span></button><button id="skipBack" class="player-action focusable" aria-label="Voltar 10 segundos"><span data-icon="skipBack"></span><small>10</small></button><button id="skipForward" class="player-action focusable" aria-label="Avançar 10 segundos"><span data-icon="skipForward"></span><small>10</small></button></div>
+      <div class="player-secondary-actions"><label class="volume-control" aria-label="Volume"><span data-icon="volume"></span><input id="volume" type="range" min="0" max="1" step="0.05" value="1" aria-label="Volume"></label><button id="pFullscreen" class="player-action focusable" aria-label="Tela cheia"><span data-icon="fullscreen"></span></button></div></div></div>
 </div>
 
 <script src="vendor/hls.min.js"></script>

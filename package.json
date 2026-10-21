@@ -1,8 +1,8 @@
 {
   "name": "vela-player",
   "productName": "Vela Player",
-  "version": "0.3.1",
-  "description": "Vela Player - player de mídia com login Xtream Codes, capas robustas e home redesenhada",
+  "version": "0.3.2",
+  "description": "Vela Player - player multimídia com pôsteres antecipados e controles modernos",
   "main": "main.js",
   "author": "Vela Player",
   "license": "UNLICENSED",

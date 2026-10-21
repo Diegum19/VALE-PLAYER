@@ -1,4 +1,4 @@
-# Vela Player 0.3.1 (PC / Windows 10-11 64 bits)
+# Vela Player 0.3.2 (PC / Windows 10-11 64 bits)
 
 App de PC com **reprodutor embutido**: o cliente baixa **um único arquivo**
 (`Instalar-Vela-Player.exe`), dá dois cliques e abre pelo atalho. Sem CMD, sem ZIP,
@@ -7,9 +7,12 @@ sem VLC, sem Python, sem internet durante a instalação, sem administrador.
 ## Como gerar o instalador (uma vez, sem instalar nada no seu PC)
 1. Crie um repositório **privado** no GitHub e envie esta pasta inteira.
 2. Aba **Actions → Gerar instalador Windows → Run workflow**.
-3. Em ~5 minutos, baixe `Instalar-Vela-Player.exe` em *Artifacts* (ou na página de Releases, se criar uma tag `v0.3.1`).
+3. Em ~5 minutos, baixe `Instalar-Vela-Player.exe` em *Artifacts* (ou na página de Releases, se criar uma tag `v0.3.2`).
 
-## Novidades da 0.3.1
+## Novidades da 0.3.2
+- **Player moderno:** barra de progresso própria, tempos decorrido/total, indicação do buffer, busca, play/pause, saltos de 10 segundos e volume.
+- **Capas antecipadas:** cartões sem pôster consultam metadados ao entrarem na área visível, com limite de concorrência e cache local.
+- **Ícones e rolagem:** SVGs consistentes e barras de rolagem personalizadas.
 - **Página inicial redesenhada:** TV ao vivo, Filmes e Séries em cartões grandes centralizados.
 - **Capas mais robustas:** busca em vários campos de imagem e URLs relativas, com tentativa automática de capas alternativas.
 - **Visual refinado:** hierarquia de texto, espaçamento, foco do controle remoto, cartões, login e diálogos.
@@ -48,3 +51,12 @@ Se falhar em filmes/séries (MKV, HEVC, áudio AC3…), abre automaticamente no 
 - Instalador sem assinatura digital: o Windows pode mostrar um aviso do SmartScreen. Uma assinatura digital válida pode ajudar na confiança, mas não garante que os alertas desapareçam imediatamente.
 - Canais ao vivo em formatos que o Chromium não decodifica (ex.: MPEG-2, áudio AC3) podem ficar sem imagem/som.
 - Não testado em Windows real nesta sessão (o ambiente não compila nem executa Windows).
+
+
+## Referências de UX consultadas
+- LiveBox (player IPTV desktop): https://github.com/aimen08/livebox
+- IPTVnator (listas, categorias e favoritos): https://github.com/gs-stream/iptvnator-electron
+- CentPlayer (progresso, busca e auto-hide): https://github.com/CenturiDevs/CentPlayer
+- Documentação Xtream Codes API, poster VOD: https://github.com/worldofiptvcom/xtream-codes-api/blob/master/docs/player-api/vod-info.md
+
+A implementação do Vela Player é própria; essas referências orientaram os recursos e a experiência de uso.
