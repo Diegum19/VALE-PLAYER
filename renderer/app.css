@@ -204,3 +204,19 @@ header #count{margin-left:auto;white-space:nowrap;font-size:13px}
 #pinfo{z-index:3;bottom:135px;background:#06090fce;backdrop-filter:blur(12px);box-shadow:0 12px 34px #0006}#pmsg{z-index:3;font-size:15px;font-weight:650}#pnum{z-index:3}
 #playerControls .focusable:focus{outline:2px solid #fff;outline-offset:4px;box-shadow:0 0 0 6px #ffffff18}
 @media(max-width:820px){.home-categories{grid-template-columns:1fr;max-width:520px}.category-tile{min-height:166px;padding:20px}.category-copy{margin:12px 0}#playerControls{padding:25px 18px 22px}.player-controls-row{gap:12px}.player-main-actions,.player-secondary-actions{gap:7px}.player-action{width:38px;height:38px}#volume{width:64px}#nav button span:not(.nav-icon){display:none}#nav button{justify-content:center;gap:0}#side .brand span:last-child{display:none}}
+
+
+/* Vela Player 0.3.3 — fixed poster sizing, stable artwork and aligned player controls */
+.card .img{display:grid;width:100%;height:auto;flex:0 0 auto;aspect-ratio:2/3;min-height:0;align-self:stretch}
+.card.live .img{flex-basis:auto;aspect-ratio:16/10;min-height:0}
+.card .poster-image.poster-landscape{object-fit:contain;background:#0a111b}
+.dhead img{object-fit:contain;object-position:center;background:#0b111b;min-height:0}
+.dhead img.poster-landscape{object-fit:contain;padding:8px}
+#dplay,#dfav{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:44px}
+#dplay [data-icon],#dfav [data-icon]{display:inline-flex;align-items:center;justify-content:center}
+#skipBack svg,#skipForward svg{transform:translateY(-3px)}
+#skipBack small,#skipForward small{right:50%;bottom:3px;transform:translateX(50%);min-width:14px;height:11px;padding:0 2px;font-size:9px;line-height:11px;text-align:center;pointer-events:none}
+.player-controls-row,.player-main-actions,.player-secondary-actions{align-items:center}
+#pnum{min-width:76px;min-height:58px;display:grid;place-items:center;padding:6px 12px;border:1px solid #ffffff30;border-radius:14px;background:#050911b8;text-align:center;font-variant-numeric:tabular-nums}
+#pnum.hidden{display:none!important}
+@media(max-width:820px){.card .img{aspect-ratio:2/3}.card.live .img{aspect-ratio:16/10}#skipBack small,#skipForward small{bottom:2px}}
