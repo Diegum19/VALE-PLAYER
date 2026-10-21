@@ -3,7 +3,7 @@
   const C = window.VelaCore;
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-  const APP_VERSION = '0.3.2';
+  const APP_VERSION = '0.3.3';
 
   // ---- Adaptador de plataforma: no PC usa o Electron; em outras plataformas (TV) usa a web ----
   const P = window.vela || {
@@ -21,13 +21,11 @@
     credLoad: async () => { try { return JSON.parse(localStorage.getItem('vela:cred')); } catch { return null; } },
     credClear: async () => { try { localStorage.removeItem('vela:cred'); } catch {} return true; },
     fullscreen: async (on) => { try { if (on) await document.documentElement.requestFullscreen(); else if (document.fullscreenElement) await document.exitFullscreen(); } catch {} },
-    mpvPlay: async () => ({ ok: false, error: 'missing' }),
-    mpvAvailable: async () => false,
   };
 
   const S = {
     profiles: [], session: null, pkey: '', tab: 'home', cats: {}, all: {}, catId: '__all__', items: [], view: [], shown: 0,
-    query: '', sort: '', favs: [], history: [], resume: {}, settings: { hideAdult: false, pin: '' }, loadSeq: 0, mpv: false,
+    query: '', sort: '', favs: [], history: [], resume: {}, settings: { hideAdult: false, pin: '' }, loadSeq: 0,
     posterCache: {}, detailCache: {}, detailPending: {}, posterPending: {}, posterChecked: {},
   };
   const PAGE = 120;
@@ -73,7 +71,7 @@
     root.querySelectorAll('[data-icon]').forEach(node=>{if(node.dataset.iconReady==='1')return;node.replaceChildren(svgIcon(node.dataset.icon,Number(node.dataset.iconSize)||19));node.dataset.iconReady='1';});
   }
   hydrateIcons();
-  const posterQueue=[];let posterQueueActive=0;const POSTER_QUEUE_LIMIT=2;
+  const posterQueue=[];let posterQueueActive=0;const POSTER_QUEUE_LIMIT=4;
   const posterKey=(kind,item)=>kind+':'+C.itemId(item);
   function posterCandidates(item,kind){
     const cached=S.posterCache[posterKey(kind,item)];
@@ -113,9 +111,9 @@
         try{if(job.profile!==S.pkey)return;data=await fetchDetails(job.kind,job.item);if(job.profile!==S.pkey)return;}catch{failed=true;}
         try{
           if(job.profile!==S.pkey)return;
-          const allUrls=data?extractDetailPosterUrls(job.kind,job.item,data):[];let chosen='';
-          for(const c of job.callbacks){const urls=allUrls.filter(url=>!c.exclude.has(url));if(urls.length){c.callback(urls);if(!chosen)chosen=urls[0];}else c.callback([]);}
-          if(!failed)S.posterChecked[job.key]=true;if(chosen)persistPoster(job.kind,job.item,chosen);
+          const allUrls=data?extractDetailPosterUrls(job.kind,job.item,data):[];
+          for(const c of job.callbacks){const urls=allUrls.filter(url=>!c.exclude.has(url));c.callback(urls);}
+          if(!failed)S.posterChecked[job.key]=true;
         }finally{delete S.posterPending[job.jobKey];}
       })().catch(()=>{}).finally(()=>{posterQueueActive--;pumpPosterQueue();});
     }
@@ -232,7 +230,7 @@
       const ui = info.user_info || {};
       const exp = Number(ui.exp_date) > 0 ? ' · vence ' + new Date(Number(ui.exp_date) * 1000).toLocaleDateString('pt-BR') : '';
       $('acct').textContent = user + exp;
-      S.mpv = await P.mpvAvailable(); S.cats = {}; S.all = {};
+      S.cats = {}; S.all = {};
       selectTab('home');
     } catch (e) {
       S.session = null;
@@ -362,12 +360,12 @@
       }
       const src=posterUrls[posterIndex++];attempted.add(src);posterImg.hidden=false;posterImg.classList.remove('is-loaded');posterImg.src=src;
     };
-    b._setPosterUrls=urls=>{const usable=(urls||[]).filter(url=>!attempted.has(url));if(!usable.length)return;posterUrls=[...new Set([...usable,...posterUrls])];posterIndex=0;loadNextPoster();};
+    b._setPosterUrls=urls=>{if(posterImg.classList.contains('is-loaded')&&posterImg.naturalWidth&&posterImg.naturalHeight&&posterImg.naturalWidth/posterImg.naturalHeight<=0.95)return;const usable=(urls||[]).filter(url=>!attempted.has(url));if(!usable.length)return;posterUrls=[...new Set([...usable,...posterUrls])];posterIndex=0;loadNextPoster();};
     b._requestPosterMetadata=()=>{
       if(kind==='live'||posterUrls.length||enrichmentRequested||S.posterChecked[key])return;
       enrichmentRequested=true;requestPosterMetadata(kind,item,[...attempted],urls=>{if(!urls||!urls.length)return;posterUrls=urls;posterIndex=0;loadNextPoster();});
     };
-    posterImg.onload=()=>{posterImg.classList.add('is-loaded');fallback.classList.add('hidden');};
+    posterImg.onload=()=>{const w=posterImg.naturalWidth,h=posterImg.naturalHeight,landscape=w&&h&&w/h>0.95;if(landscape&&posterIndex<posterUrls.length){posterImg.hidden=true;posterImg.classList.remove('is-loaded','poster-landscape');fallback.classList.remove('hidden');loadNextPoster();return;}if(landscape&&!enrichmentRequested&&kind!=='live'&&!S.posterChecked[key]){enrichmentRequested=true;posterImg.hidden=true;posterImg.classList.remove('is-loaded','poster-landscape');fallback.classList.remove('hidden');requestPosterMetadata(kind,item,[...attempted],urls=>{const extras=(urls||[]).filter(url=>!attempted.has(url));if(extras.length){posterUrls=[...new Set([...extras,...posterUrls])];posterIndex=0;loadNextPoster();}else{posterImg.hidden=false;posterImg.classList.add('poster-landscape','is-loaded');fallback.classList.add('hidden');}});return;}posterImg.classList.toggle('poster-landscape',!!landscape);posterImg.classList.add('is-loaded');fallback.classList.add('hidden');if(!landscape)persistPoster(kind,item,posterImg.currentSrc||posterImg.src);};
     posterImg.onerror=()=>{posterImg.hidden=true;posterImg.classList.remove('is-loaded');fallback.classList.remove('hidden');loadNextPoster();};
     if(posterUrls.length)loadNextPoster();else if(kind!=='live'){if(posterObserver)posterObserver.observe(b);else b._requestPosterMetadata();}
     b.append(art,el('div','t',resumeEntry&&resumeEntry.title?resumeEntry.title:C.itemName(item)));
@@ -474,7 +472,7 @@
   }
   // guarda só o essencial (mantém o arquivo local pequeno)
   function cleanItem(it) {
-    const keep = ['stream_id', 'series_id', 'id', 'name', 'title', 'stream_icon', 'cover', 'cover_big', 'cover_url', 'movie_image', 'movie_cover', 'poster', 'poster_url', 'backdrop_path', 'backdrop', 'image', 'image_url', 'category_id', 'container_extension', 'direct_source', 'rating', 'plot', 'genre', 'releaseDate', 'added'];
+    const keep = ['stream_id', 'series_id', 'id', 'name', 'title', 'stream_icon', 'cover', 'cover_big', 'cover_url', 'movie_image', 'movie_cover', 'poster', 'poster_url', 'backdrop_path', 'backdrop', 'image', 'image_url', 'thumbnail', 'category_id', 'container_extension', 'direct_source', 'rating', 'plot', 'genre', 'releaseDate', 'added'];
     const o = {}; for (const k of keep) if (it[k] !== undefined) o[k] = it[k]; return o;
   }
   async function addHistory(kind, item) {
@@ -486,26 +484,30 @@
   // ---- Detalhe (filmes e séries) ----
   function setDetailPoster(item) {
     const img = $('dposter');
+    const kind = cur && cur.kind ? cur.kind : S.tab;
+    const itemKey = posterKey(kind, item);
+    const ratio = img.naturalHeight ? img.naturalWidth / img.naturalHeight : 0;
+    if (img.dataset.posterItemKey === itemKey && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0 && ratio <= 0.95) return;
     const token = (Number(img.dataset.posterToken) || 0) + 1;
     img.dataset.posterToken = String(token);
-    img.classList.remove('poster-missing');
-    const urls = posterCandidates(item, cur && cur.kind ? cur.kind : S.tab);
+    img.dataset.posterItemKey = itemKey;
+    img.classList.remove('poster-missing', 'poster-landscape');
+    const urls = posterCandidates(item, kind);
     let index = 0;
     img.onload = () => {
       if (img.dataset.posterToken !== String(token)) return;
+      const w = img.naturalWidth, h = img.naturalHeight, landscape = w && h && w / h > 0.95;
+      if (landscape && index < urls.length) { img.src = urls[index++]; return; }
+      img.classList.toggle('poster-landscape', !!landscape);
       img.classList.remove('poster-missing');
+      if (!landscape && cur && cur.kind === kind) persistPoster(kind, cur.item, img.currentSrc || img.src);
     };
     img.onerror = () => {
       if (img.dataset.posterToken !== String(token)) return;
-      img.classList.add('poster-missing');
       if (index < urls.length) img.src = urls[index++];
-      else img.removeAttribute('src');
+      else { img.removeAttribute('src'); img.classList.add('poster-missing'); }
     };
-    if (!urls.length) {
-      img.removeAttribute('src');
-      img.classList.add('poster-missing');
-      return;
-    }
+    if (!urls.length) { img.removeAttribute('src'); img.classList.add('poster-missing'); return; }
     img.src = urls[index++];
   }
 
@@ -526,8 +528,6 @@
         const d = await fetchDetails('movie', item);
         if (cur !== mine) return;
         const i = d.info || {};
-        const metaPosters=C.itemPosters(i,S.session&&S.session.host),detailPosters=extractDetailPosterUrls('movie',item,d);
-        if(metaPosters.length)persistPoster('movie',item,metaPosters[0]);else if(detailPosters.length)persistPoster('movie',item,detailPosters[0]);S.posterChecked[posterKey('movie',item)]=true;
         $('dmeta').textContent = meta({ ...item, ...i, rating: i.rating || item.rating });
         $('dplot').textContent = i.plot || i.description || item.plot || '';
         $('dcast').textContent = [i.director && 'Direção: ' + i.director, i.cast && 'Elenco: ' + i.cast].filter(Boolean).join(' · ');
@@ -537,8 +537,6 @@
         const info = await fetchDetails('series', item);
         if (cur !== mine) return;
         const i = info.info || {};
-        const metaPosters=C.itemPosters(i,S.session&&S.session.host),detailPosters=extractDetailPosterUrls('series',item,info);
-        if(metaPosters.length)persistPoster('series',item,metaPosters[0]);else if(detailPosters.length)persistPoster('series',item,detailPosters[0]);S.posterChecked[posterKey('series',item)]=true;
         setDetailPoster({ ...item, ...i });
         if (i.plot && !item.plot) $('dplot').textContent = i.plot;
         if (i.cast) $('dcast').textContent = 'Elenco: ' + i.cast;
@@ -613,7 +611,7 @@
     });
     act('Limpar histórico', async () => { if (await confirmDlg('Limpar histórico', 'Apagar os itens assistidos recentemente?', 'Limpar')) { S.history = []; await saveLocal('history', []); toast('Histórico limpo'); } });
     act('Limpar "continuar assistindo"', async () => { if (await confirmDlg('Limpar', 'Apagar os pontos de retomada dos filmes e séries?', 'Limpar')) { S.resume = {}; await saveLocal('resume', {}); toast('Pontos de retomada apagados'); } });
-    b.append(el('p', 'muted', `Vela Player ${APP_VERSION} · Player: hls.js e mpegts.js (Apache-2.0)${S.mpv ? ' · mpv (GPL)' : ''}. O Vela Player não fornece canais nem conteúdo.`));
+    b.append(el('p', 'muted', `Vela Player ${APP_VERSION} · Reprodutor embutido com HLS.js e mpegts.js (Apache-2.0). O Vela Player não fornece canais nem conteúdo.`));
     const row = el('div', 'row'); const close = el('button', 'primary focusable', 'Fechar'); close.onclick = () => { done(null); if (S.tab === 'home') renderHome(); else if (S.tab === 'live' || S.tab === 'movie' || S.tab === 'series') selectTab(S.tab); }; row.append(close); b.append(row);
   });
 
@@ -697,7 +695,7 @@
     const list = opts.list || null;
     const idx = list ? list.findIndex((x) => C.itemId(x) === C.itemId(item)) : -1;
     const p = (pl = { kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, stopped: false });
-    $('player').classList.remove('hidden'); $('ptitle').textContent = title; $('pmpv').classList.toggle('hidden', !S.mpv);
+    $('player').classList.remove('hidden'); $('ptitle').textContent = title;
     $('pmsg').textContent = 'Carregando…'; $('pback').focus(); updatePlayerFav(); seekDragging=false;$('seek').value='0';updatePlayerUI();$('playerControls').classList.remove('idle');$('ptop').classList.remove('idle');
     $('pinfo').classList.add('hidden');
     togglePlayerFullscreen(true);
@@ -712,12 +710,7 @@
     }
     if (p.stopped) return;
     cleanup(p); resetVideo();
-    if (S.mpv && kind !== 'live') {
-      $('pmsg').textContent = 'Abrindo no player avançado…';
-      const r = await P.mpvPlay(urls[0], title);
-      if (r.ok) { closePlayer(); return; }
-    }
-    $('pmsg').textContent = 'Não foi possível reproduzir. Pode ser um canal fora do ar, um formato não suportado ou conta sem acesso.' + (S.mpv ? ' Tente "Player avançado".' : '');
+    $('pmsg').textContent = 'Não foi possível reproduzir. Pode ser uma transmissão fora do ar, um formato ou codec não suportado, ou sua conta pode não ter acesso.';
     $('ptop').classList.remove('idle');
   }
 
@@ -765,11 +758,6 @@
     if (S.tab === 'home' || S.tab === 'history') selectTab(S.tab);
   }
   $('pback').onclick = closePlayer;
-  $('pmpv').onclick = async () => {
-    if (!pl) return; const { urls, title } = pl;
-    const r = await P.mpvPlay(urls[urls.length - 1], title);
-    if (r.ok) closePlayer(); else toast('Player avançado indisponível.');
-  };
   function updatePlayerFav(){const on=!!(pl&&favIndex(pl.kind,pl.item)>=0);$('pfav').replaceChildren(svgIcon(on?'starFilled':'star',19));$('pfav').setAttribute('aria-label',on?'Remover dos favoritos':'Adicionar aos favoritos');$('pfav').title=on?'Remover dos favoritos':'Adicionar aos favoritos';}
   $('pfav').onclick = async () => { if (!pl) return; const on = await toggleFav(pl.kind, pl.item); updatePlayerFav(); toast(on ? 'Adicionado aos favoritos' : 'Removido dos favoritos'); };
 
