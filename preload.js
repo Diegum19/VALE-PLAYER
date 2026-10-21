@@ -9,6 +9,4 @@ contextBridge.exposeInMainWorld('vela', {
   credLoad: () => ipcRenderer.invoke('cred:load'),
   credClear: () => ipcRenderer.invoke('cred:clear'),
   fullscreen: (on) => ipcRenderer.invoke('fullscreen', on),
-  mpvPlay: (url, title) => ipcRenderer.invoke('mpv:play', url, title),
-  mpvAvailable: () => ipcRenderer.invoke('mpv:available'),
 });
