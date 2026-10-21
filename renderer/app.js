@@ -3,7 +3,7 @@
   const C = window.VelaCore;
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-  const APP_VERSION = '0.3.0';
+  const APP_VERSION = '0.3.1';
 
   // ---- Adaptador de plataforma: no PC usa o Electron; em outras plataformas (TV) usa a web ----
   const P = window.vela || {
@@ -254,18 +254,42 @@
   function makeCard(item, idx, resumeEntry) {
     const kind = kindOf(item);
     const b = el('button', 'card focusable ' + (kind === 'live' ? 'live' : ''));
-    const img = el('div', 'img', ICON[kind] || '▶');
-    const poster = C.itemPoster(item);
-    if (poster) {
-      const probe = new Image(); probe.referrerPolicy = 'no-referrer';
-      probe.onload = () => { img.style.backgroundImage = `url("${poster.replace(/"/g, '%22')}")`; img.textContent = ''; };
-      probe.src = poster;
-    }
-    b.append(img, el('div', 't', resumeEntry && resumeEntry.title ? resumeEntry.title : C.itemName(item)));
+    const art = el('div', 'img');
+    const fallback = el('span', 'poster-fallback', ICON[kind] || '▶');
+    const posterImg = el('img', 'poster-image');
+    posterImg.alt = '';
+    posterImg.loading = 'lazy';
+    posterImg.decoding = 'async';
+    posterImg.draggable = false;
+    posterImg.hidden = true;
+    art.append(fallback, posterImg);
+
+    const posterUrls = C.itemPosters(item, S.session && S.session.host);
+    let posterIndex = 0;
+    const loadNextPoster = () => {
+      posterImg.classList.remove('is-loaded');
+      posterImg.hidden = true;
+      if (posterIndex >= posterUrls.length) return;
+      posterImg.hidden = false;
+      posterImg.src = posterUrls[posterIndex++];
+    };
+    posterImg.onload = () => {
+      posterImg.classList.add('is-loaded');
+      fallback.classList.add('hidden');
+    };
+    posterImg.onerror = () => {
+      posterImg.hidden = true;
+      posterImg.classList.remove('is-loaded');
+      fallback.classList.remove('hidden');
+      loadNextPoster();
+    };
+    if (posterUrls.length) loadNextPoster();
+
+    b.append(art, el('div', 't', resumeEntry && resumeEntry.title ? resumeEntry.title : C.itemName(item)));
     const rating = Number(item.rating);
-    if (kind !== 'live' && rating > 0) img.appendChild(el('span', 'badge', '★ ' + rating.toFixed(1)));
+    if (kind !== 'live' && rating > 0) art.appendChild(el('span', 'badge', '★ ' + rating.toFixed(1)));
     const r = resumeEntry || S.resume[C.resumeKey(kind, item)];
-    if (r && r.d) { const bar = el('div', 'bar'); const i = el('i'); i.style.width = Math.min(100, (r.t / r.d) * 100) + '%'; bar.appendChild(i); img.appendChild(bar); }
+    if (r && r.d) { const bar = el('div', 'bar'); const i = el('i'); i.style.width = Math.min(100, (r.t / r.d) * 100) + '%'; bar.appendChild(i); art.appendChild(bar); }
     if (kind === 'live' && S.tab === 'search') b.append(el('div', 'sub2', 'Canal'));
     b.onclick = () => {
       if (resumeEntry) return play(resumeEntry.kind, resumeEntry.item, resumeEntry.episode || null, resumeEntry.title);
@@ -309,11 +333,44 @@
 
   // ---- Início ----
   function renderHome() {
-    const home = $('home'); home.innerHTML = '';
+    const home = $('home');
+    home.innerHTML = '';
+
+    const hero = el('section', 'home-hero');
+    hero.append(
+      el('p', 'home-kicker', 'SUA CENTRAL DE ENTRETENIMENTO'),
+      el('h2', 'home-title', 'O que vamos assistir hoje?'),
+      el('p', 'home-subtitle', 'Entre em uma categoria para explorar seus canais, filmes e séries.')
+    );
+    const categories = el('div', 'home-categories');
+    const choices = [
+      { tab: 'live', cls: 'category-live', icon: '📺', title: 'TV ao vivo', desc: 'Seus canais, notícias, esportes e muito mais.' },
+      { tab: 'movie', cls: 'category-movie', icon: '🎬', title: 'Filmes', desc: 'Descubra seu próximo filme por categoria.' },
+      { tab: 'series', cls: 'category-series', icon: '🍿', title: 'Séries', desc: 'Temporadas e episódios em um só lugar.' },
+    ];
+    for (const item of choices) {
+      const button = el('button', 'category-tile focusable ' + item.cls);
+      button.type = 'button';
+      const top = el('div', 'category-top');
+      top.append(el('span', 'category-icon', item.icon), el('span', 'category-arrow', '↗'));
+      const copy = el('div', 'category-copy');
+      copy.append(el('h3', 'category-title', item.title), el('p', 'category-desc', item.desc));
+      const cta = el('div', 'category-cta');
+      cta.append(el('span', '', 'Explorar catálogo'), el('span', '', '→'));
+      button.append(top, copy, cta);
+      button.onclick = () => selectTab(item.tab);
+      categories.appendChild(button);
+    }
+    home.append(hero, categories);
+
     const section = (title, nodes) => {
       if (!nodes.length) return;
-      const sec = el('div', 'sec'); sec.append(el('h3', '', title));
-      const row = el('div', 'hrow'); nodes.forEach((n) => row.appendChild(n)); sec.appendChild(row); home.appendChild(sec);
+      const sec = el('div', 'sec');
+      sec.append(el('h3', '', title));
+      const row = el('div', 'hrow');
+      nodes.forEach((n) => row.appendChild(n));
+      sec.appendChild(row);
+      home.appendChild(sec);
     };
     const cont = Object.values(S.resume).filter((r) => r && r.item && r.d && !hidden(r.kind, r.item)).sort((a, b) => b.at - a.at).slice(0, 20);
     section('Continuar assistindo', cont.map((r) => makeCard({ ...r.item, _kind: r.kind }, 0, r)));
@@ -322,8 +379,8 @@
     const recentVod = S.history.filter((h) => h.kind !== 'live' && !hidden(h.kind, h.item)).slice(0, 20);
     section('Assistidos recentemente', recentVod.map((h) => makeCard({ ...h.item, _kind: h.kind }, 0)));
     section('Favoritos', S.favs.filter((f) => !hidden(f.kind, f.item)).slice(0, 20).map((f) => makeCard({ ...f.item, _kind: f.kind }, 0)));
-    if (!home.children.length) {
-      home.append(el('p', 'muted', 'Bem-vindo! Escolha Ao vivo, Filmes ou Séries no menu. O que você assistir aparece aqui para continuar depois.'));
+    if (!cont.length && !recentLive.length && !recentVod.length && !S.favs.length) {
+      home.appendChild(el('p', 'home-empty-note', 'Quando você assistir a algum conteúdo ou marcar favoritos, eles aparecerão aqui.'));
     }
   }
 
@@ -337,7 +394,7 @@
   }
   // guarda só o essencial (mantém o arquivo local pequeno)
   function cleanItem(it) {
-    const keep = ['stream_id', 'series_id', 'id', 'name', 'title', 'stream_icon', 'cover', 'poster', 'category_id', 'container_extension', 'direct_source', 'rating', 'plot', 'genre', 'releaseDate', 'added'];
+    const keep = ['stream_id', 'series_id', 'id', 'name', 'title', 'stream_icon', 'cover', 'cover_big', 'cover_url', 'movie_image', 'movie_cover', 'poster', 'poster_url', 'backdrop_path', 'backdrop', 'image', 'image_url', 'category_id', 'container_extension', 'direct_source', 'rating', 'plot', 'genre', 'releaseDate', 'added'];
     const o = {}; for (const k of keep) if (it[k] !== undefined) o[k] = it[k]; return o;
   }
   async function addHistory(kind, item) {
@@ -347,12 +404,37 @@
   }
 
   // ---- Detalhe (filmes e séries) ----
+  function setDetailPoster(item) {
+    const img = $('dposter');
+    const token = (Number(img.dataset.posterToken) || 0) + 1;
+    img.dataset.posterToken = String(token);
+    img.classList.remove('poster-missing');
+    const urls = C.itemPosters(item, S.session && S.session.host);
+    let index = 0;
+    img.onload = () => {
+      if (img.dataset.posterToken !== String(token)) return;
+      img.classList.remove('poster-missing');
+    };
+    img.onerror = () => {
+      if (img.dataset.posterToken !== String(token)) return;
+      img.classList.add('poster-missing');
+      if (index < urls.length) img.src = urls[index++];
+      else img.removeAttribute('src');
+    };
+    if (!urls.length) {
+      img.removeAttribute('src');
+      img.classList.add('poster-missing');
+      return;
+    }
+    img.src = urls[index++];
+  }
+
   let cur = null;
   async function openItem(kind, item, idx) {
     if (kind === 'live') return play('live', item, null, C.itemName(item), { list: S.view.filter((x) => kindOf(x) === 'live'), item });
     cur = { kind, item, seasons: [] };
     $('dtitle').textContent = C.itemName(item);
-    $('dposter').src = C.itemPoster(item) || ''; $('dposter').referrerPolicy = 'no-referrer';
+    setDetailPoster(item);
     const meta = (it) => [it.genre, it.releaseDate || it.releasedate || it.release_date, it.duration, it.rating ? '★ ' + it.rating : ''].filter(Boolean).join(' · ');
     $('dmeta').textContent = meta(item); $('dplot').textContent = item.plot || ''; $('dcast').textContent = '';
     $('seasons').innerHTML = ''; $('episodes').textContent = kind === 'series' ? 'Carregando episódios…' : '';
@@ -367,12 +449,13 @@
         $('dmeta').textContent = meta({ ...item, ...i, rating: i.rating || item.rating });
         $('dplot').textContent = i.plot || i.description || item.plot || '';
         $('dcast').textContent = [i.director && 'Direção: ' + i.director, i.cast && 'Elenco: ' + i.cast].filter(Boolean).join(' · ');
-        if (!C.itemPoster(item) && C.isHttpUrl(i.movie_image)) $('dposter').src = i.movie_image;
+        setDetailPoster({ ...item, ...i, movie_image: i.movie_image || item.movie_image });
         mine.movieExt = d.movie_data && d.movie_data.container_extension;
       } else {
         const info = await call('get_series_info', { series_id: C.itemId(item) });
         if (cur !== mine) return;
         const i = info.info || {};
+        setDetailPoster({ ...item, ...i });
         if (i.plot && !item.plot) $('dplot').textContent = i.plot;
         if (i.cast) $('dcast').textContent = 'Elenco: ' + i.cast;
         mine.seasons = C.seasonsOf(info);

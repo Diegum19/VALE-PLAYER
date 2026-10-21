@@ -1,8 +1,8 @@
 {
   "name": "vela-player",
   "productName": "Vela Player",
-  "version": "0.3.0",
-  "description": "Vela Player - player de mídia com login Xtream Codes, reprodutor embutido",
+  "version": "0.3.1",
+  "description": "Vela Player - player de mídia com login Xtream Codes, capas robustas e home redesenhada",
   "main": "main.js",
   "author": "Vela Player",
   "license": "UNLICENSED",
@@ -25,11 +25,34 @@
     "appId": "br.velaplayer.app",
     "productName": "Vela Player",
     "copyright": "Vela Player",
-    "directories": { "output": "dist" },
-    "files": ["main.js", "preload.js", "renderer/**/*", "package.json"],
-    "extraResources": [{ "from": "vendor-bin/mpv", "to": "mpv", "filter": ["**/*", "!.gitkeep"] }],
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "vendor-bin/mpv",
+        "to": "mpv",
+        "filter": [
+          "**/*",
+          "!.gitkeep"
+        ]
+      }
+    ],
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "build/icon.ico"
     },
     "nsis": {

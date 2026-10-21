@@ -32,6 +32,10 @@ assert.deepStrictEqual(s.map((x) => x.season), [1, 2]);
 assert.deepStrictEqual(s[0].episodes.map((e) => e.episode_num), [1, 2]);
 
 assert.strictEqual(C.itemPoster({ cover: 'file:///etc/passwd' }), '');
+assert.deepStrictEqual(C.itemPosters({ stream_icon: 'https://img.example/movie.jpg', cover_big: 'https://img.example/big.jpg' }), ['https://img.example/movie.jpg', 'https://img.example/big.jpg']);
+assert.strictEqual(C.itemPoster({ movie_image: '/posters/movie.jpg' }, 'https://server.example:8080'), 'https://server.example:8080/posters/movie.jpg');
+assert.strictEqual(C.itemPoster({ backdrop_path: '//img.example/backdrop.jpg' }), 'https://img.example/backdrop.jpg');
+assert.deepStrictEqual(C.itemPosters({ stream_icon: 'javascript:alert(1)', cover: 'file:///etc/passwd' }), []);
 assert.strictEqual(C.errorMessage({ error: 'http', status: 503 }), 'O servidor respondeu com erro HTTP 503.');
 console.log('core: todos os testes passaram');
 

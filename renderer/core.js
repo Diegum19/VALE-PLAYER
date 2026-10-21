@@ -42,9 +42,35 @@
 
   function itemId(item) { return String(item.stream_id ?? item.series_id ?? item.id ?? ''); }
   function itemName(item) { return String(item.name || item.title || 'Sem título'); }
-  function itemPoster(item) {
-    const p = item.stream_icon || item.cover || item.poster || (Array.isArray(item.backdrop_path) ? item.backdrop_path[0] : '');
-    return isHttpUrl(p) ? p : '';
+  function itemPosters(item, baseHost) {
+    if (!item || typeof item !== 'object') return [];
+    const fields = ['stream_icon', 'cover', 'cover_big', 'cover_url', 'movie_image', 'movie_cover', 'poster', 'poster_url', 'backdrop_path', 'backdrop', 'image', 'image_url', 'logo', 'icon'];
+    const out = [];
+    for (const key of fields) {
+      let value = item[key];
+      if (typeof value === 'string' && value.trim().startsWith('[')) {
+        try { value = JSON.parse(value); } catch { /* mantém string original */ }
+      }
+      const values = Array.isArray(value) ? value : [value];
+      for (const candidate of values) {
+        let raw = '';
+        if (typeof candidate === 'string') raw = candidate.trim();
+        else if (candidate && typeof candidate === 'object') raw = String(candidate.url || candidate.file_path || candidate.src || '').trim();
+        if (!raw || /^(?:data|javascript|file):/i.test(raw)) continue;
+        let url = '';
+        try {
+          if (raw.startsWith('//')) url = 'https:' + raw;
+          else if (isHttpUrl(raw)) url = raw;
+          else if (baseHost) url = new URL(raw, normalizeHost(baseHost)).href;
+        } catch { /* endereço de capa inválido */ }
+        if (isHttpUrl(url) && !out.includes(url)) out.push(url);
+      }
+    }
+    return out;
+  }
+
+  function itemPoster(item, baseHost) {
+    return itemPosters(item, baseHost)[0] || '';
   }
 
   const ERRORS = {
@@ -131,7 +157,7 @@
   function resumeKey(kind, item, ep) { return kind + ':' + itemId(item) + (ep ? ':' + (ep.id ?? ep.stream_id) : ''); }
   function hhmm(sec) { const d = new Date(sec * 1000); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
 
-  const api = { decodeB64, epgList, epgNowNext, sortItems, isAdultName, fmtTime, resumeKey, hhmm, normalizeHost, apiUrl, streamUrls, itemId, itemName, itemPoster, errorMessage, checkLogin, filterItems, profileKey, seasonsOf, isHttpUrl };
+  const api = { itemPosters, decodeB64, epgList, epgNowNext, sortItems, isAdultName, fmtTime, resumeKey, hhmm, normalizeHost, apiUrl, streamUrls, itemId, itemName, itemPoster, errorMessage, checkLogin, filterItems, profileKey, seasonsOf, isHttpUrl };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VelaCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);
