@@ -2,7 +2,6 @@
 const { app, BrowserWindow, ipcMain, session, safeStorage, net, shell, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { spawn } = require('child_process');
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
@@ -102,22 +101,6 @@ app.whenReady().then(() => {
 
   ipcMain.handle('fullscreen', (_e, on) => { if (win) win.setFullScreen(!!on); return true; });
 
-  // Reprodutor avançado (mpv embutido no instalador) para formatos que o reprodutor padrão não abre.
-  ipcMain.handle('mpv:play', (_e, url, title) => {
-    if (!isHttp(url)) return { ok: false, error: 'bad_url' };
-    const exe = path.join(process.resourcesPath || '', 'mpv', 'mpv.exe');
-    if (!fs.existsSync(exe)) return { ok: false, error: 'missing' };
-    try {
-      const child = spawn(exe, [
-        '--force-window=yes', '--keep-open=no', '--hwdec=auto-safe', '--cache=yes',
-        '--user-agent=VelaPlayer/' + app.getVersion(), '--title=' + String(title || 'Vela Player').slice(0, 120), '--', url,
-      ], { detached: true, stdio: 'ignore', windowsHide: false });
-      child.on('error', () => {});
-      child.unref();
-      return { ok: true };
-    } catch { return { ok: false, error: 'spawn' }; }
-  });
-  ipcMain.handle('mpv:available', () => fs.existsSync(path.join(process.resourcesPath || '', 'mpv', 'mpv.exe')));
 
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
