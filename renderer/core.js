@@ -44,7 +44,7 @@
   function itemName(item) { return String(item.name || item.title || 'Sem título'); }
   function itemPosters(item, baseHost) {
     if (!item || typeof item !== 'object') return [];
-    const fields = ['stream_icon', 'cover', 'cover_big', 'cover_url', 'movie_image', 'movie_cover', 'poster', 'poster_url', 'backdrop_path', 'backdrop', 'image', 'image_url', 'logo', 'icon', 'thumbnail'];
+    const fields = ['cover_big', 'movie_image', 'movie_cover', 'poster', 'poster_url', 'cover_url', 'cover', 'stream_icon', 'thumbnail', 'image', 'image_url', 'backdrop_path', 'backdrop', 'logo', 'icon'];
     const out = [];
     for (const key of fields) {
       let value = item[key];
