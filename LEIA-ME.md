@@ -1,4 +1,4 @@
-# Vela Player 0.3.2 (PC / Windows 10-11 64 bits)
+# Vela Player 0.3.3 (PC / Windows 10-11 64 bits)
 
 App de PC com **reprodutor embutido**: o cliente baixa **um único arquivo**
 (`Instalar-Vela-Player.exe`), dá dois cliques e abre pelo atalho. Sem CMD, sem ZIP,
@@ -7,11 +7,14 @@ sem VLC, sem Python, sem internet durante a instalação, sem administrador.
 ## Como gerar o instalador (uma vez, sem instalar nada no seu PC)
 1. Crie um repositório **privado** no GitHub e envie esta pasta inteira.
 2. Aba **Actions → Gerar instalador Windows → Run workflow**.
-3. Em ~5 minutos, baixe `Instalar-Vela-Player.exe` em *Artifacts* (ou na página de Releases, se criar uma tag `v0.3.2`).
+3. Baixe `Instalar-Vela-Player.exe` em *Artifacts* no fluxo concluído.
 
-## Novidades da 0.3.2
+## Novidades da 0.3.3
 - **Player moderno:** barra de progresso própria, tempos decorrido/total, indicação do buffer, busca, play/pause, saltos de 10 segundos e volume.
-- **Capas antecipadas:** cartões sem pôster consultam metadados ao entrarem na área visível, com limite de concorrência e cache local.
+- **Pôsteres corrigidos:** a grade reserva altura real para cada capa, prefere campos próprios de pôster em vez de logos/backdrops e busca metadados ao entrar na área visível. Só capas válidas são guardadas em cache.
+- **Tela de detalhes estável:** mantém a capa vertical já carregada, evita a troca brusca entre imagens e usa ajuste sem corte para evitar o efeito de zoom.
+- **Player único:** removido o botão e a troca automática para o player externo; retomar episódio não fecha o player embutido para abrir outra janela.
+- **Controles alinhados:** os números dos saltos de 10 segundos ficam dentro dos botões e os controles/sinopse receberam ajustes de alinhamento.
 - **Ícones e rolagem:** SVGs consistentes e barras de rolagem personalizadas.
 - **Página inicial redesenhada:** TV ao vivo, Filmes e Séries em cartões grandes centralizados.
 - **Capas mais robustas:** busca em vários campos de imagem e URLs relativas, com tentativa automática de capas alternativas.
@@ -27,9 +30,7 @@ sem VLC, sem Python, sem internet durante a instalação, sem administrador.
 - Atalhos no player: espaço (pausa), ←/→ (±10 s em filmes), ↑/↓ (volume em filmes), M (mudo), F (tela cheia).
 
 ## Licenças de terceiros (distribuição)
-hls.js e mpegts.js: Apache-2.0. mpv (player avançado embutido): GPL-2.0-or-later — ao distribuir o instalador,
-informe isso e disponibilize o link do código-fonte (https://github.com/mpv-player/mpv). Ideias de recursos foram
-estudadas em projetos open source (ex.: IPTVnator, MIT), sem copiar código nem marca.
+hls.js e mpegts.js: Apache-2.0. Ideias de recursos foram estudadas em projetos open source (ex.: IPTVnator, MIT), sem copiar código nem marca.
 
 ## Teste/desenvolvimento
 - `npm install` → `npm start` (abre o app) → `npm test` (lógica).
@@ -44,8 +45,8 @@ estudadas em projetos open source (ex.: IPTVnator, MIT), sem copiar código nem 
   (DPAPI), favoritos/histórico/ponto de retomada em arquivo local.
 
 ## Reprodução
-1. HLS (`.m3u8`) via hls.js → 2. MPEG-TS ao vivo via mpegts.js → 3. vídeo nativo (MP4/WebM, H.264/AAC).
-Se falhar em filmes/séries (MKV, HEVC, áudio AC3…), abre automaticamente no **mpv embutido** (janela própria).
+1. HLS (`.m3u8`) via hls.js → 2. MPEG-TS ao vivo via mpegts.js → 3. vídeo nativo, conforme os formatos e codecs suportados pelo Chromium/Electron.
+O aplicativo mantém a reprodução em uma única janela; arquivos/streams com codecs não suportados exibem erro em vez de abrir outro player. MKV, HEVC e áudio AC3 dependem da compatibilidade do formato e do build do Chromium.
 
 ## Limites conhecidos
 - Instalador sem assinatura digital: o Windows pode mostrar um aviso do SmartScreen. Uma assinatura digital válida pode ajudar na confiança, mas não garante que os alertas desapareçam imediatamente.
