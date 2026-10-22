@@ -21,7 +21,7 @@ try:
         # login certo
         pg.fill('#pass', 'segredo'); pg.click('#loginBtn')
         pg.wait_for_selector('#home')
-        check('Bem-vindo' in pg.inner_text('#home'), 'início vazio mostra boas-vindas')
+        check('O que vamos assistir hoje?' in pg.inner_text('#home'), 'início vazio mostra o título atual')
         pg.click('#nav button[data-tab=live]'); pg.wait_for_selector('#grid .card')
         check(pg.locator('#grid .card').count() == 120, 'ao vivo: 300 canais, 120 renderizados por vez')
         pg.eval_on_selector('#gridWrap', 'e=>e.scrollTop=e.scrollHeight'); pg.wait_for_timeout(300)
