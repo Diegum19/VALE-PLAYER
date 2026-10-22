@@ -617,7 +617,7 @@
     act('Diagnóstico de vídeo', () => {
       if(!videoDiagnostics.childElementCount){
         const features=window.mpegts&&typeof window.mpegts.getFeatureList==='function'?window.mpegts.getFeatureList():{};
-        const browser=/(?:Chrome|Chromium)\\//.test(navigator.userAgent)?'Chromium integrado':'navegador não identificado';
+        const browser=/Chrome|Chromium/.test(navigator.userAgent)?'Chromium integrado':'navegador não identificado';
         const checks=[
           ['MP4 · H.264/AAC',V.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"')],
           ['MP4 · HEVC/H.265',V.canPlayType('video/mp4; codecs="hvc1.1.6.L93.B0"')],
@@ -686,11 +686,16 @@
 
   function modeFor(kind, url) { return C.mediaMode(kind, url); }
 
+  function playbackErrorMessage(code) {
+    const reason={nohls:'Este sistema não conseguiu reproduzir HLS.',nompegts:'O navegador não oferece suporte ao motor MPEG-TS para este fluxo.',nodash:'O motor MPEG-DASH não está disponível.',codec:'O fluxo usa um codec que este sistema não consegue decodificar.',network:'Falha de rede ao carregar o vídeo.',timeout:'O servidor demorou demais para iniciar a reprodução.',hls:'O manifesto HLS falhou ou contém um formato incompatível.',dash:'O manifesto DASH falhou ou contém um formato incompatível.',ts:'O fluxo MPEG-TS/FLV não pôde ser interpretado.',video:'O navegador não conseguiu decodificar este arquivo.'};
+    return (reason[code]||'A reprodução foi interrompida ou não pôde iniciar.')+' Confira a conexão, o acesso à conta ou a compatibilidade do codec.';
+  }
+
   // Tenta tocar uma URL; resolve quando começa a tocar, rejeita em erro ou após 20 s.
   function attempt(p, mode, url, startAt) {
     return new Promise((resolve, reject) => {
       let done = false;
-      const fail = (m) => { p.lastPlaybackError=m; if (!done) { done = true; clearTimeout(timer); V.removeEventListener('playing', ok); V.removeEventListener('error', onErr); reject(new Error(m)); } else if (!p.stopped) runtimeError(p); };
+      const fail = (m) => { p.lastPlaybackError=m; if (!done) { done = true; clearTimeout(timer); V.removeEventListener('playing', ok); V.removeEventListener('error', onErr); reject(new Error(m)); } else if (!p.stopped) { if (p.kind === 'live') runtimeError(p); else { $('pmsg').textContent = playbackErrorMessage(m); $('ptop').classList.remove('idle'); $('playerControls').classList.remove('idle'); } } };
       const ok = () => { if (!done) { done = true; clearTimeout(timer); V.removeEventListener('error', onErr); resolve(); } };
       const onErr = () => fail('video');
       const timer = setTimeout(() => fail('timeout'), 20000);
@@ -758,8 +763,7 @@
     }
     if (p.stopped) return;
     cleanup(p); resetVideo();
-    const reason={nohls:'Este sistema não conseguiu reproduzir HLS.',nompegts:'O navegador não oferece suporte ao motor MPEG-TS para este fluxo.',nodash:'O motor MPEG-DASH não está disponível.',codec:'O fluxo usa um codec que este sistema não consegue decodificar.',network:'Falha de rede ao carregar o vídeo.',timeout:'O servidor demorou demais para iniciar a reprodução.',hls:'O manifesto HLS falhou ou contém um formato incompatível.',dash:'O manifesto DASH falhou ou contém um formato incompatível.',ts:'O fluxo MPEG-TS/FLV não pôde ser interpretado.',video:'O navegador não conseguiu decodificar este arquivo.'};
-    $('pmsg').textContent = (reason[p.lastPlaybackError]||'Não foi possível reproduzir este conteúdo.')+' Confira a conexão, o acesso à conta ou a compatibilidade do codec.';
+    $('pmsg').textContent = playbackErrorMessage(p.lastPlaybackError);
     $('ptop').classList.remove('idle');
   }
 
