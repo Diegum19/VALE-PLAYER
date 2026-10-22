@@ -1,4 +1,4 @@
-# Vela Player 0.3.3 (PC / Windows 10-11 64 bits)
+# Vela Player 0.4.0 (PC / Windows 10-11 64 bits)
 
 App de PC com **reprodutor embutido**: o cliente baixa **um único arquivo**
 (`Instalar-Vela-Player.exe`), dá dois cliques e abre pelo atalho. Sem CMD, sem ZIP,
@@ -9,11 +9,17 @@ sem VLC, sem Python, sem internet durante a instalação, sem administrador.
 2. Aba **Actions → Gerar instalador Windows → Run workflow**.
 3. Baixe `Instalar-Vela-Player.exe` em *Artifacts* no fluxo concluído.
 
-## Novidades da 0.3.3
+## Novidades da 0.4.0
 - **Player moderno:** barra de progresso própria, tempos decorrido/total, indicação do buffer, busca, play/pause, saltos de 10 segundos e volume.
 - **Pôsteres corrigidos:** a grade reserva altura real para cada capa, prefere campos próprios de pôster em vez de logos/backdrops e busca metadados ao entrar na área visível. Só capas válidas são guardadas em cache.
 - **Tela de detalhes estável:** mantém a capa vertical já carregada, evita a troca brusca entre imagens e usa ajuste sem corte para evitar o efeito de zoom.
-- **Player único:** removido o botão e a troca automática para o player externo; retomar episódio não fecha o player embutido para abrir outra janela.
+- **Player único:** sem troca automática de janela; erros que acontecem durante a reprodução agora exibem uma mensagem útil.
+- **Compatibilidade ampliada:** HLS com hls.js, MPEG-DASH com dash.js, MPEG-TS e FLV com mpegts.js, além dos formatos nativos suportados pelo Chromium/Electron.
+- **Qualidade de vídeo:** seletor para escolher resolução manual em manifestos HLS/DASH ou manter a qualidade automática, sem limitar os níveis à dimensão do player.
+- **Diagnóstico:** configuração mostra o suporte que o sistema reporta para H.264/AAC, HEVC, AV1, VP9 e MPEG-TS.
+- **Ícone novo:** vela estilizada em ciano/branco sobre fundo azul-marinho, aplicada à tela de login, janela e instalador.
+- **Motores atualizados:** Electron/Chromium, HLS.js, MPEG-TS e dash.js foram atualizados para versões estáveis atuais.
+- **Testes adicionais:** CI valida sintaxe, lógica do núcleo e fluxo de interface usando Chromium e servidor Xtream simulado.
 - **Controles alinhados:** os números dos saltos de 10 segundos ficam dentro dos botões e os controles/sinopse receberam ajustes de alinhamento.
 - **Ícones e rolagem:** SVGs consistentes e barras de rolagem personalizadas.
 - **Página inicial redesenhada:** TV ao vivo, Filmes e Séries em cartões grandes centralizados.
@@ -45,8 +51,9 @@ hls.js e mpegts.js: Apache-2.0. Ideias de recursos foram estudadas em projetos o
   (DPAPI), favoritos/histórico/ponto de retomada em arquivo local.
 
 ## Reprodução
-1. HLS (`.m3u8`) via hls.js → 2. MPEG-TS ao vivo via mpegts.js → 3. vídeo nativo, conforme os formatos e codecs suportados pelo Chromium/Electron.
-O aplicativo mantém a reprodução em uma única janela; arquivos/streams com codecs não suportados exibem erro em vez de abrir outro player. MKV, HEVC e áudio AC3 dependem da compatibilidade do formato e do build do Chromium.
+HLS (`.m3u8`) via hls.js; MPEG-DASH (`.mpd`) via dash.js; MPEG-TS e FLV via mpegts.js; outros formatos são enviados ao decodificador nativo do Chromium/Electron. A seleção manual de resolução existe quando o manifesto HLS/DASH fornece variantes.
+
+A extensão do arquivo não garante suporte ao codec: MKV, HEVC/H.265, AV1, áudio AC3/DTS e HDR dependem do codec, do sistema operacional, da GPU/driver, e do próprio fluxo. O aplicativo não faz upscaling nem pode aumentar uma qualidade que o servidor não transmite. Se houver erro durante uma reprodução, o player mostra a causa aproximada sem abrir outro player automaticamente.
 
 ## Limites conhecidos
 - Instalador sem assinatura digital: o Windows pode mostrar um aviso do SmartScreen. Uma assinatura digital válida pode ajudar na confiança, mas não garante que os alertas desapareçam imediatamente.
