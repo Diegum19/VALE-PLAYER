@@ -43,6 +43,16 @@ jobs:
       - name: Preparar bibliotecas de reprodução
         run: npm run vendor
 
+      - name: Gerar vídeo WebM de teste
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
+            choco install ffmpeg -y --no-progress
+          }
+          ffmpeg -hide_banner -loglevel error -f lavfi -i "color=c=0x101b2b:s=96x54:r=1:d=30" -an -c:v libvpx -deadline realtime -cpu-used 8 -b:v 2k -g 10 -pix_fmt yuv420p -threads 1 -f webm -y test/clip.webm
+          if (-not (Test-Path 'test/clip.webm')) { throw 'Não foi possível gerar o vídeo de teste.' }
+
       - name: Testar interface com Xtream simulado
         run: python test/ui.test.py
 
