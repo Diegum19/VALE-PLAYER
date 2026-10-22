@@ -12,7 +12,7 @@
 
 <main id="login" class="screen">
   <form id="loginForm" class="login-card" autocomplete="off">
-    <div class="logo">⛵</div>
+    <div class="logo"><img src="assets/app-icon.png" alt="" width="88" height="88"></div>
     <h1>Vela Player</h1>
     <p class="sub">Entre com os dados do seu serviço.</p>
     <div id="picker" class="hidden"></div>
@@ -29,7 +29,7 @@
 
 <div id="app" class="screen hidden">
   <aside id="side">
-    <div class="brand"><span data-icon="sailboat"></span><span>Vela</span></div>
+    <div class="brand"><img class="brand-app-icon" src="assets/app-icon.png" alt=""><span>Vela</span></div>
     <nav id="nav">
       <button data-tab="home" class="focusable"><span class="nav-icon" data-icon="home"></span><span>Início</span></button>
       <button data-tab="live" class="focusable"><span class="nav-icon" data-icon="tv"></span><span>TV ao vivo</span></button>
@@ -76,11 +76,12 @@
   <div id="playerControls" class="player-controls"><div id="seekArea" class="seek-area"><input id="seek" class="seek-slider" type="range" min="0" max="1000" value="0" aria-label="Posição do vídeo"><div class="player-time"><span id="elapsedTime">0:00</span><span id="durationTime">0:00</span></div></div>
     <div id="liveLabel" class="live-label hidden"><span class="live-dot"></span><span data-icon="radio"></span><span>AO VIVO</span></div>
     <div class="player-controls-row"><div class="player-main-actions"><button id="playPause" class="player-action primary focusable" aria-label="Pausar"><span data-icon="pause"></span></button><button id="skipBack" class="player-action focusable" aria-label="Voltar 10 segundos"><span data-icon="skipBack"></span><small>10</small></button><button id="skipForward" class="player-action focusable" aria-label="Avançar 10 segundos"><span data-icon="skipForward"></span><small>10</small></button></div>
-      <div class="player-secondary-actions"><label class="volume-control" aria-label="Volume"><span data-icon="volume"></span><input id="volume" type="range" min="0" max="1" step="0.05" value="1" aria-label="Volume"></label><button id="pFullscreen" class="player-action focusable" aria-label="Tela cheia"><span data-icon="fullscreen"></span></button></div></div></div>
+      <div class="player-secondary-actions"><label id="qualityWrap" class="quality-control hidden" aria-label="Qualidade do vídeo"><span data-icon="quality"></span><select id="quality" aria-label="Qualidade do vídeo"><option value="-1">Automática</option></select></label><label class="volume-control" aria-label="Volume"><span data-icon="volume"></span><input id="volume" type="range" min="0" max="1" step="0.05" value="1" aria-label="Volume"></label><button id="pFullscreen" class="player-action focusable" aria-label="Tela cheia"><span data-icon="fullscreen"></span></button></div></div></div>
 </div>
 
 <script src="vendor/hls.min.js"></script>
 <script src="vendor/mpegts.js"></script>
+<script src="vendor/dash.all.min.js"></script>
 <script src="core.js"></script>
 <script src="app.js"></script>
 </body>
