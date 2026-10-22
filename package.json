@@ -1,8 +1,8 @@
 {
   "name": "vela-player",
   "productName": "Vela Player",
-  "version": "0.3.3",
-  "description": "Vela Player - pôsteres corrigidos e reprodutor embutido com controles modernos",
+  "version": "0.4.0",
+  "description": "Vela Player - HLS, DASH, MPEG-TS, FLV e qualidade adaptativa",
   "main": "main.js",
   "author": "Vela Player",
   "license": "UNLICENSED",
@@ -14,12 +14,13 @@
     "dist": "npm run vendor && electron-builder --win --x64 --publish never"
   },
   "dependencies": {
-    "hls.js": "1.5.17",
-    "mpegts.js": "1.7.3"
+    "hls.js": "1.7.3",
+    "mpegts.js": "1.8.2",
+    "dashjs": "5.2.1"
   },
   "devDependencies": {
-    "electron": "33.2.1",
-    "electron-builder": "25.1.8"
+    "electron": "45.0.0",
+    "electron-builder": "26.15.3"
   },
   "build": {
     "appId": "br.velaplayer.app",
@@ -43,7 +44,7 @@
           ]
         }
       ],
-      "icon": "build/icon.ico"
+      "icon": "build/icon.svg"
     },
     "nsis": {
       "oneClick": true,
