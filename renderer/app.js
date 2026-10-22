@@ -723,7 +723,7 @@
           if(!window.dashjs||!window.dashjs.MediaPlayer)return fail('nodash');
           p.dash=window.dashjs.MediaPlayer().create();
           p.dash.on(window.dashjs.MediaPlayer.events.STREAM_INITIALIZED,()=>{if(p===pl&&!p.stopped)populateQualityOptions(p);});
-          p.dash.on(window.dashjs.MediaPlayer.events.ERROR,()=>{if(!done&&!p.stopped)fail('dash');});
+          p.dash.on(window.dashjs.MediaPlayer.events.ERROR,()=>{if(!p.stopped)fail('dash');});
           p.dash.initialize(V,url,false);
         } else V.src = url;
         if (startAt > 5) V.addEventListener('loadedmetadata', () => { try { V.currentTime = startAt; } catch {} }, { once: true });
@@ -739,7 +739,15 @@
     p.reconnecting = true; $('pmsg').textContent = 'Reconectando…';
     setTimeout(() => { if (p === pl && !p.stopped) play(p.kind, p.item, p.episode, p.title, { list: p.list, idx: p.idx, retries: p.retries }); }, 1500);
   }
-  V.addEventListener('error', () => { if (pl && pl.started) runtimeError(pl); });
+  V.addEventListener('error', () => {
+    if (!pl || !pl.started || pl.stopped) return;
+    if (pl.kind === 'live') { runtimeError(pl); return; }
+    const code = V.error && V.error.code;
+    const reason = code === 2 ? 'network' : code === 3 ? 'codec' : 'video';
+    pl.lastPlaybackError = reason;
+    $('pmsg').textContent = playbackErrorMessage(reason);
+    $('ptop').classList.remove('idle'); $('playerControls').classList.remove('idle');
+  });
 
   async function play(kind, item, episode, title, opts = {}) {
     stopPlayback();
