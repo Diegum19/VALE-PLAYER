@@ -16,6 +16,13 @@ assert.deepStrictEqual(live, ['http://h.com/live/us%20er/p%40ss/12.m3u8', 'http:
 assert.deepStrictEqual(C.streamUrls('h.com', 'u', 'p', 'movie', { stream_id: 5, container_extension: 'mkv' }), ['http://h.com/movie/u/p/5.mkv']);
 assert.deepStrictEqual(C.streamUrls('h.com', 'u', 'p', 'series', { series_id: 1 }, { id: '99', container_extension: 'mp4' }), ['http://h.com/series/u/p/99.mp4']);
 assert.deepStrictEqual(C.streamUrls('h.com', 'u', 'p', 'live', { stream_id: 1, direct_source: 'http://cdn/a.m3u8' }), ['http://cdn/a.m3u8']);
+assert.strictEqual(C.mediaMode('live', 'https://cdn.example/live/index.m3u8?token=abc'), 'hls');
+assert.strictEqual(C.mediaMode('movie', 'https://cdn.example/movie/manifest.mpd?token=abc'), 'dash');
+assert.strictEqual(C.mediaMode('movie', 'https://cdn.example/movie/file.flv?token=abc'), 'flv');
+assert.strictEqual(C.mediaMode('movie', 'https://cdn.example/movie/file.ts?token=abc'), 'ts');
+assert.strictEqual(C.mediaMode('live', 'https://cdn.example/live/file.m2ts'), 'ts');
+assert.strictEqual(C.mediaMode('movie', 'https://cdn.example/movie/file.mkv'), 'native');
+assert.deepStrictEqual(C.qualityChoices([{ height: 720, width: 1280, bitrate: 1800000 }, { height: 1080, width: 1920, bitrate: 5000000 }, { height: 720, width: 1280, bitrate: 2800000 }]).map(q => [q.index, q.label]), [[1, '1080p · 5.0 Mbps'], [2, '720p · 2.8 Mbps']]);
 assert.deepStrictEqual(C.streamUrls('h.com', 'u', 'p', 'live', { stream_id: 1, direct_source: 'javascript:alert(1)' })[0].startsWith('http://h.com/live/'), true);
 
 assert.ok(C.checkLogin({ user_info: { auth: 1, status: 'Active' }, server_info: {} }));
