@@ -794,7 +794,8 @@
   function saveResume() {
     if (!pl || pl.kind === 'live' || !V.duration || !isFinite(V.duration)) return;
     const t = V.currentTime;
-    if (t > 5 && t < V.duration - 30) {
+    const keepTail = Math.min(30, Math.max(5, V.duration * 0.05));
+    if (t > 5 && t < V.duration - keepTail) {
       S.resume[pl.rkey] = { t: Math.floor(t), d: Math.floor(V.duration), kind: pl.kind, item: cleanItem(pl.item), episode: pl.episode ? { id: pl.episode.id, episode_num: pl.episode.episode_num, title: pl.episode.title, container_extension: pl.episode.container_extension, direct_source: pl.episode.direct_source } : null, title: pl.title, season: (/T(\d+)E/.exec(pl.title) || [])[1], at: Date.now() };
     } else delete S.resume[pl.rkey];
     saveLocal('resume', S.resume).catch(() => {});
