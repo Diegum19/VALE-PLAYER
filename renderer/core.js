@@ -42,6 +42,41 @@
 
   function itemId(item) { return String(item.stream_id ?? item.series_id ?? item.id ?? ''); }
   function itemName(item) { return String(item.name || item.title || 'Sem título'); }
+
+  // Detecta o protocolo pela extensão do caminho, sem se confundir com query strings.
+  function mediaMode(kind, url) {
+    const pathname = String(url || '').split(/[?#]/, 1)[0].toLowerCase();
+    if (/\.m3u8$/.test(pathname)) return 'hls';
+    if (/\.mpd$/.test(pathname)) return 'dash';
+    if (/\.flv$/.test(pathname)) return 'flv';
+    if (/\.(?:ts|m2ts)$/.test(pathname)) return 'ts';
+    return 'native';
+  }
+
+  // Agrupa variantes pela resolução e mantém a variante de maior bitrate em cada resolução.
+  function qualityChoices(levels) {
+    const best = new Map();
+    (Array.isArray(levels) ? levels : []).forEach((level, index) => {
+      const height = Number(level && level.height) || 0;
+      const width = Number(level && level.width) || 0;
+      const bitrate = Number(level && (level.bitrate ?? level.bandwidth)) || 0;
+      if (!height && !width) return;
+      const key = height ? 'h:' + height : 'w:' + width;
+      const previous = best.get(key);
+      if (!previous || bitrate > previous.bitrate) {
+        best.set(key, { index, height, width, bitrate });
+      }
+    });
+    return [...best.values()]
+      .sort((a, b) => b.height - a.height || b.width - a.width || b.bitrate - a.bitrate)
+      .map((entry) => ({
+        ...entry,
+        label: (entry.height ? entry.height + 'p' : entry.width + 'w') +
+          (entry.bitrate ? ' · ' + (entry.bitrate >= 1000000
+            ? (entry.bitrate / 1000000).toFixed(1) + ' Mbps'
+            : Math.round(entry.bitrate / 1000) + ' kbps') : ''),
+      }));
+  }
   function itemPosters(item, baseHost) {
     if (!item || typeof item !== 'object') return [];
     const fields = ['cover_big', 'movie_image', 'movie_cover', 'poster', 'poster_url', 'cover_url', 'cover', 'stream_icon', 'thumbnail', 'image', 'image_url', 'backdrop_path', 'backdrop', 'logo', 'icon'];
@@ -157,7 +192,7 @@
   function resumeKey(kind, item, ep) { return kind + ':' + itemId(item) + (ep ? ':' + (ep.id ?? ep.stream_id) : ''); }
   function hhmm(sec) { const d = new Date(sec * 1000); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
 
-  const api = { itemPosters, decodeB64, epgList, epgNowNext, sortItems, isAdultName, fmtTime, resumeKey, hhmm, normalizeHost, apiUrl, streamUrls, itemId, itemName, itemPoster, errorMessage, checkLogin, filterItems, profileKey, seasonsOf, isHttpUrl };
+  const api = { itemPosters, decodeB64, epgList, epgNowNext, sortItems, isAdultName, fmtTime, resumeKey, hhmm, normalizeHost, apiUrl, streamUrls, itemId, itemName, itemPoster, errorMessage, checkLogin, filterItems, profileKey, seasonsOf, isHttpUrl, mediaMode, qualityChoices };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VelaCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);
