@@ -21,13 +21,30 @@ jobs:
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Instalar dependências do projeto
         run: npm install --no-audit --no-fund
 
       - name: Executar testes
         run: npm test
+
+      - name: Configurar Python para testes de interface
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar Playwright
+        run: python -m pip install --upgrade pip playwright
+
+      - name: Instalar Chromium de teste
+        run: python -m playwright install chromium
+
+      - name: Preparar bibliotecas de reprodução
+        run: npm run vendor
+
+      - name: Testar interface com Xtream simulado
+        run: python test/ui.test.py
 
       - name: Verificar sintaxe do app
         run: node --check renderer/app.js
@@ -37,6 +54,9 @@ jobs:
 
       - name: Verificar sintaxe do Electron
         run: node --check main.js
+
+      - name: Verificar script de bibliotecas
+        run: node --check scripts/copy-vendor.js
 
       - name: Gerar instalador EXE
         run: npm run dist
