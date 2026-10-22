@@ -220,3 +220,23 @@ header #count{margin-left:auto;white-space:nowrap;font-size:13px}
 #pnum{min-width:76px;min-height:58px;display:grid;place-items:center;padding:6px 12px;border:1px solid #ffffff30;border-radius:14px;background:#050911b8;text-align:center;font-variant-numeric:tabular-nums}
 #pnum.hidden{display:none!important}
 @media(max-width:820px){.card .img{aspect-ratio:2/3}.card.live .img{aspect-ratio:16/10}#skipBack small,#skipForward small{bottom:2px}}
+
+
+/* Vela Player 0.4.0 — adaptive streaming, clearer diagnostics and consistent branding */
+.logo{display:flex;justify-content:center;align-items:center;margin-bottom:2px}.logo img{display:block;width:88px;height:88px;object-fit:contain;border-radius:22px;box-shadow:0 10px 30px #0005}
+.brand-app-icon{width:30px;height:30px;display:block;object-fit:contain;border-radius:8px;flex:0 0 30px}
+.brand{gap:9px}
+.quality-control{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:7px;color:#eef7ff;max-width:220px}
+.quality-control [data-icon]{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;color:#d2e3f3}
+.quality-control select{width:auto;min-width:100px;max-width:185px;padding:9px 26px 9px 10px;border-radius:9px;border-color:#ffffff29;background:#111821e8;color:#fff;font-size:12px;line-height:1.2}
+.quality-control select:focus{outline:2px solid var(--accent);outline-offset:2px}
+.video-diagnostics{margin:12px 0 16px;padding:13px 14px;border:1px solid var(--border);border-radius:12px;background:#0d1521}
+.video-diagnostics p{margin:5px 0;font-size:12px;line-height:1.55}
+.video-diagnostics .diagnostic-row{display:flex;justify-content:space-between;gap:12px;color:#e4edf8}
+.player-secondary-actions{gap:16px}
+#qualityWrap{min-width:0}
+#ptitle{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#playerControls{padding-bottom:max(22px,env(safe-area-inset-bottom))}
+@media(max-width:900px){.quality-control select{min-width:78px;max-width:130px}.quality-control{gap:5px}.player-secondary-actions{gap:9px}}
+@media(max-width:620px){.quality-control select{max-width:110px;font-size:11px;padding:8px 20px 8px 7px}.volume-control{gap:6px}#volume{width:58px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
