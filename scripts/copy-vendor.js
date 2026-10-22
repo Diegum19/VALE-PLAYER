@@ -7,6 +7,7 @@ fs.mkdirSync(out, { recursive: true });
 const files = [
   ['node_modules/hls.js/dist/hls.min.js', 'hls.min.js'],
   ['node_modules/mpegts.js/dist/mpegts.js', 'mpegts.js'],
+  ['node_modules/dashjs/dist/modern/umd/dash.all.min.js', 'dash.all.min.js'],
 ];
 for (const [from, to] of files) {
   const src = path.join(root, from);
