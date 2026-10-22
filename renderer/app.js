@@ -3,7 +3,7 @@
   const C = window.VelaCore;
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-  const APP_VERSION = '0.3.3';
+  const APP_VERSION = '0.4.0';
 
   // ---- Adaptador de plataforma: no PC usa o Electron; em outras plataformas (TV) usa a web ----
   const P = window.vela || {
@@ -26,7 +26,7 @@
   const S = {
     profiles: [], session: null, pkey: '', tab: 'home', cats: {}, all: {}, catId: '__all__', items: [], view: [], shown: 0,
     query: '', sort: '', favs: [], history: [], resume: {}, settings: { hideAdult: false, pin: '' }, loadSeq: 0,
-    posterCache: {}, detailCache: {}, detailPending: {}, posterPending: {}, posterChecked: {},
+    posterCache: {}, detailCache: {}, detailPending: {}, posterPending: {}, posterChecked: {}, posterRetryAt: {},
   };
   const PAGE = 120;
   const LABEL = { live: 'canais', movie: 'filmes', series: 'séries', favs: 'favoritos', history: 'itens', search: 'resultados' };
@@ -55,7 +55,8 @@
     volumeMute:'<path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 5 6m0-6-5 6"/>',
     fullscreen:'<path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/>',
     sailboat:'<path d="M12 3v14M12 4l7 10h-7M10 9 5 16h5M3 19c2 2 4 2 6 0 2 2 4 2 6 0 2 2 4 2 6 0"/>',
-    radio:'<circle cx="12" cy="12" r="2"/><path d="M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14M2 2a14 14 0 0 0 0 20M22 2a14 14 0 0 1 0 20"/>'
+    radio:'<circle cx="12" cy="12" r="2"/><path d="M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14M2 2a14 14 0 0 0 0 20M22 2a14 14 0 0 1 0 20"/>',
+    quality:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'
   };
   function svgIcon(name,size=20){
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
@@ -99,6 +100,7 @@
   function requestPosterMetadata(kind,item,excludeUrls,callback){
     if(!S.session||(kind!=='movie'&&kind!=='series'))return;
     const key=posterKey(kind,item);if(S.posterChecked[key])return;
+    const retryAt=S.posterRetryAt[key]||0;if(retryAt>Date.now()){callback([]);return;}if(retryAt)delete S.posterRetryAt[key];
     const jobKey=S.pkey+'|'+key;let job=S.posterPending[jobKey];const cb={callback,exclude:new Set(excludeUrls||[])};
     if(job){job.callbacks.push(cb);return;}
     job={key,jobKey,kind,item,profile:S.pkey,callbacks:[cb]};S.posterPending[jobKey]=job;posterQueue.push(job);pumpPosterQueue();
@@ -113,7 +115,7 @@
           if(job.profile!==S.pkey)return;
           const allUrls=data?extractDetailPosterUrls(job.kind,job.item,data):[];
           for(const c of job.callbacks){const urls=allUrls.filter(url=>!c.exclude.has(url));c.callback(urls);}
-          if(!failed)S.posterChecked[job.key]=true;
+          if(failed)S.posterRetryAt[job.key]=Date.now()+90000;else{delete S.posterRetryAt[job.key];S.posterChecked[job.key]=true;}
         }finally{delete S.posterPending[job.jobKey];}
       })().catch(()=>{}).finally(()=>{posterQueueActive--;pumpPosterQueue();});
     }
@@ -243,7 +245,7 @@
     const per = async (k, def) => { const v = await P.storeGet(k); return (v && v[S.pkey]) || def; };
     S.favs = await per('favs', []); S.history = await per('history', []); S.resume = await per('resume', {});
     S.posterCache = await per('posterCache', {});
-    S.detailCache = {}; S.detailPending = {}; S.posterPending = {}; S.posterChecked = {};
+    S.detailCache = {}; S.detailPending = {}; S.posterPending = {}; S.posterChecked = {}; S.posterRetryAt = {};
     S.settings = { hideAdult: false, pin: '', ...((await P.storeGet('settings')) || {}) };
   }
   async function saveLocal(k, val) { const all = (await P.storeGet(k)) || {}; all[S.pkey] = val; await P.storeSet(k, all); }
@@ -611,12 +613,32 @@
     });
     act('Limpar histórico', async () => { if (await confirmDlg('Limpar histórico', 'Apagar os itens assistidos recentemente?', 'Limpar')) { S.history = []; await saveLocal('history', []); toast('Histórico limpo'); } });
     act('Limpar "continuar assistindo"', async () => { if (await confirmDlg('Limpar', 'Apagar os pontos de retomada dos filmes e séries?', 'Limpar')) { S.resume = {}; await saveLocal('resume', {}); toast('Pontos de retomada apagados'); } });
-    b.append(el('p', 'muted', `Vela Player ${APP_VERSION} · Reprodutor embutido com HLS.js e mpegts.js (Apache-2.0). O Vela Player não fornece canais nem conteúdo.`));
+    const videoDiagnostics=el('div','video-diagnostics hidden');
+    act('Diagnóstico de vídeo', () => {
+      if(!videoDiagnostics.childElementCount){
+        const features=window.mpegts&&typeof window.mpegts.getFeatureList==='function'?window.mpegts.getFeatureList():{};
+        const browser=/(?:Chrome|Chromium)\\//.test(navigator.userAgent)?'Chromium integrado':'navegador não identificado';
+        const checks=[
+          ['MP4 · H.264/AAC',V.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"')],
+          ['MP4 · HEVC/H.265',V.canPlayType('video/mp4; codecs="hvc1.1.6.L93.B0"')],
+          ['MP4 · AV1',V.canPlayType('video/mp4; codecs="av01.0.08M.08"')],
+          ['WebM · VP9',V.canPlayType('video/webm; codecs="vp09.00.10.08"')],
+          ['MPEG-TS ao vivo',features.mseLivePlayback?'Disponível':'Não disponível'],
+          ['HEVC em MPEG-TS',features.mseH265Playback?'Disponível':'Não disponível'],
+        ];
+        videoDiagnostics.append(el('p','muted','Motor de vídeo: '+browser));
+        videoDiagnostics.append(el('p','muted','A compatibilidade reportada não garante a reprodução de todos os arquivos.'));
+        for(const [name,value] of checks)videoDiagnostics.append(el('p','diagnostic-row',name+': '+(value||'Não reportado')));
+      }
+      videoDiagnostics.classList.toggle('hidden');
+    });
+    b.append(videoDiagnostics);
+    b.append(el('p', 'muted', `Vela Player ${APP_VERSION} · HLS.js, dash.js e mpegts.js. O Vela Player não fornece canais nem conteúdo.`));
     const row = el('div', 'row'); const close = el('button', 'primary focusable', 'Fechar'); close.onclick = () => { done(null); if (S.tab === 'home') renderHome(); else if (S.tab === 'live' || S.tab === 'movie' || S.tab === 'series') selectTab(S.tab); }; row.append(close); b.append(row);
   });
 
   // ---- Reprodutor embutido ----
-  const V=$('video');V.controls=false;let pl=null,hideTimer=null,epgTimer=null,numBuf='',numTimer=null,seekDragging=false,playerFullscreen=false;
+  const V=$('video');V.controls=false;V.preload='auto';V.playsInline=true;let pl=null,hideTimer=null,epgTimer=null,numBuf='',numTimer=null,seekDragging=false,playerFullscreen=false;
   function togglePlayerFullscreen(force){playerFullscreen=typeof force==='boolean'?force:!playerFullscreen;P.fullscreen(playerFullscreen);}
   function refreshTimeline(){
     const live=!!(pl&&pl.kind==='live');$('seekArea').classList.toggle('hidden',live);$('liveLabel').classList.toggle('hidden',!live);$('skipBack').classList.toggle('hidden',live);$('skipForward').classList.toggle('hidden',live);
@@ -627,6 +649,22 @@
   function updatePlayPauseIcon(){const paused=V.paused;setIconLabel($('playPause'),paused?'play':'pause','');$('playPause').setAttribute('aria-label',paused?'Reproduzir':'Pausar');$('playPause').title=paused?'Reproduzir (espaço)':'Pausar (espaço)';}
   function updateVolumeUI(){const volume=V.muted?0:V.volume;$('volume').value=String(volume);$('volume').style.setProperty('--volume-level',Math.round(volume*100)+'%');$('volume').previousElementSibling.replaceChildren(svgIcon(volume<=0?'volumeMute':'volume',19));}
   function updatePlayerUI(){refreshTimeline();updatePlayPauseIcon();updateVolumeUI();}
+  function populateQualityOptions(p){
+    const wrap=$('qualityWrap'),select=$('quality');
+    let source=[];
+    if(p&&p.hls)source=p.hls.levels||[];
+    else if(p&&p.dash&&typeof p.dash.getRepresentationsByType==='function'){try{source=p.dash.getRepresentationsByType('video').map(r=>({height:r.height,width:r.width,bitrate:r.bandwidth}));}catch{source=[];}}
+    const choices=C.qualityChoices(source);
+    select.replaceChildren(new Option('Automática','-1'));
+    for(const item of choices)select.appendChild(new Option(item.label,String(item.index)));
+    wrap.classList.toggle('hidden',choices.length<2);select.value='-1';
+  }
+  $('quality').addEventListener('change',()=>{
+    if(!pl)return;const value=Number($('quality').value);
+    if(pl.hls)pl.hls.currentLevel=value;
+    if(pl.dash){pl.dash.updateSettings({streaming:{abr:{autoSwitchBitrate:{video:value<0}}}});if(value>=0)pl.dash.setRepresentationForTypeByIndex('video',value,true);}
+    bumpUi();
+  });
   $('seek').addEventListener('input',()=>{seekDragging=true;refreshTimeline();bumpUi();});
   $('seek').addEventListener('change',()=>{if(pl&&pl.kind!=='live'&&Number.isFinite(V.duration)&&V.duration>0)V.currentTime=(Number($('seek').value)/1000)*V.duration;seekDragging=false;refreshTimeline();bumpUi();});
   $('playPause').addEventListener('click',()=>{if(V.paused)V.play().catch(()=>{});else V.pause();bumpUi();});
@@ -641,21 +679,18 @@
     if (!p) return;
     try { p.hls && p.hls.destroy(); } catch {}
     try { if (p.ts) { p.ts.pause(); p.ts.unload(); p.ts.detachMediaElement(); p.ts.destroy(); } } catch {}
-    p.hls = p.ts = null;
+    try { p.dash && p.dash.reset(); } catch {}
+    p.hls = p.ts = p.dash = null;
   }
   function resetVideo() { try { V.pause(); V.removeAttribute('src'); V.load(); } catch {} }
 
-  function modeFor(kind, url) {
-    if (/\.m3u8(\?|$)/i.test(url)) return 'hls';
-    if (kind === 'live' && /\.ts(\?|$)/i.test(url)) return 'ts';
-    return 'native';
-  }
+  function modeFor(kind, url) { return C.mediaMode(kind, url); }
 
   // Tenta tocar uma URL; resolve quando começa a tocar, rejeita em erro ou após 20 s.
   function attempt(p, mode, url, startAt) {
     return new Promise((resolve, reject) => {
       let done = false;
-      const fail = (m) => { if (!done) { done = true; clearTimeout(timer); V.removeEventListener('playing', ok); V.removeEventListener('error', onErr); reject(new Error(m)); } else if (!p.stopped) runtimeError(p); };
+      const fail = (m) => { p.lastPlaybackError=m; if (!done) { done = true; clearTimeout(timer); V.removeEventListener('playing', ok); V.removeEventListener('error', onErr); reject(new Error(m)); } else if (!p.stopped) runtimeError(p); };
       const ok = () => { if (!done) { done = true; clearTimeout(timer); V.removeEventListener('error', onErr); resolve(); } };
       const onErr = () => fail('video');
       const timer = setTimeout(() => fail('timeout'), 20000);
@@ -663,15 +698,28 @@
       V.addEventListener('error', onErr, { once: true });
       try {
         if (mode === 'hls') {
-          if (!window.Hls || !window.Hls.isSupported()) return fail('nohls');
-          p.hls = new window.Hls({ maxBufferLength: 30, enableWorker: true });
-          p.hls.on(window.Hls.Events.ERROR, (_e, d) => { if (d && d.fatal) fail('hls'); });
-          p.hls.loadSource(url); p.hls.attachMedia(V);
-        } else if (mode === 'ts') {
-          if (!window.mpegts || !window.mpegts.getFeatureList().mseLivePlayback) return fail('nots');
-          p.ts = window.mpegts.createPlayer({ type: 'mpegts', isLive: true, url }, { enableStashBuffer: true, liveBufferLatencyChasing: false });
-          p.ts.on(window.mpegts.Events.ERROR, () => fail('ts'));
+          if (!window.Hls || !window.Hls.isSupported()) {
+            if (V.canPlayType('application/vnd.apple.mpegurl')) V.src=url;
+            else return fail('nohls');
+          } else {
+            p.hls = new window.Hls({ maxBufferLength: 30, maxMaxBufferLength: 60, backBufferLength: 90, capLevelToPlayerSize: false, startLevel: -1, enableWorker: true, enableWorkerForMSE: true });
+            p.hls.on(window.Hls.Events.MANIFEST_PARSED,()=>{if(p===pl&&!p.stopped)populateQualityOptions(p);});
+            p.hls.on(window.Hls.Events.ERROR, (_e, d) => { if (d && d.fatal) { const m=d.type===window.Hls.ErrorTypes.MEDIA_ERROR?'codec':d.type===window.Hls.ErrorTypes.NETWORK_ERROR?'network':'hls'; fail(m); } });
+            p.hls.loadSource(url); p.hls.attachMedia(V);
+          }
+        } else if (mode === 'ts' || mode === 'flv') {
+          if (!window.mpegts || !window.mpegts.isSupported()) return fail('nompegts');
+          const features=window.mpegts.getFeatureList();
+          if(kind==='live'&&!features.mseLivePlayback) return fail('nompegts');
+          p.ts = window.mpegts.createPlayer({ type: mode==='flv'?'flv':'mpegts', isLive: kind==='live', url }, { enableWorker: true, enableWorkerForMSE: true, enableStashBuffer: kind==='live', stashInitialSize: 384*1024, liveBufferLatencyChasing: kind==='live' });
+          p.ts.on(window.mpegts.Events.ERROR, (type, detail) => { const m=detail==='MediaCodecUnsupported'?'codec':/NETWORK/i.test(String(type))?'network':'ts'; fail(m); });
           p.ts.attachMediaElement(V); p.ts.load();
+        } else if (mode === 'dash') {
+          if(!window.dashjs||!window.dashjs.MediaPlayer)return fail('nodash');
+          p.dash=window.dashjs.MediaPlayer().create();
+          p.dash.on(window.dashjs.MediaPlayer.events.STREAM_INITIALIZED,()=>{if(p===pl&&!p.stopped)populateQualityOptions(p);});
+          p.dash.on(window.dashjs.MediaPlayer.events.ERROR,()=>{if(!done&&!p.stopped)fail('dash');});
+          p.dash.initialize(V,url,false);
         } else V.src = url;
         if (startAt > 5) V.addEventListener('loadedmetadata', () => { try { V.currentTime = startAt; } catch {} }, { once: true });
         const pr = V.play(); if (pr && pr.catch) pr.catch(() => {});
@@ -694,9 +742,9 @@
     const rkey = C.resumeKey(kind, item, episode);
     const list = opts.list || null;
     const idx = list ? list.findIndex((x) => C.itemId(x) === C.itemId(item)) : -1;
-    const p = (pl = { kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, stopped: false });
+    const p = (pl = { kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, dash: null, stopped: false, lastPlaybackError: '' });
     $('player').classList.remove('hidden'); $('ptitle').textContent = title;
-    $('pmsg').textContent = 'Carregando…'; $('pback').focus(); updatePlayerFav(); seekDragging=false;$('seek').value='0';updatePlayerUI();$('playerControls').classList.remove('idle');$('ptop').classList.remove('idle');
+    $('pmsg').textContent = 'Carregando…'; $('pback').focus(); updatePlayerFav(); seekDragging=false;$('seek').value='0';$('qualityWrap').classList.add('hidden');$('quality').replaceChildren(new Option('Automática','-1'));updatePlayerUI();$('playerControls').classList.remove('idle');$('ptop').classList.remove('idle');
     $('pinfo').classList.add('hidden');
     togglePlayerFullscreen(true);
     if (!opts.retries) addHistory(kind, item).catch(() => {});
@@ -710,7 +758,8 @@
     }
     if (p.stopped) return;
     cleanup(p); resetVideo();
-    $('pmsg').textContent = 'Não foi possível reproduzir. Pode ser uma transmissão fora do ar, um formato ou codec não suportado, ou sua conta pode não ter acesso.';
+    const reason={nohls:'Este sistema não conseguiu reproduzir HLS.',nompegts:'O navegador não oferece suporte ao motor MPEG-TS para este fluxo.',nodash:'O motor MPEG-DASH não está disponível.',codec:'O fluxo usa um codec que este sistema não consegue decodificar.',network:'Falha de rede ao carregar o vídeo.',timeout:'O servidor demorou demais para iniciar a reprodução.',hls:'O manifesto HLS falhou ou contém um formato incompatível.',dash:'O manifesto DASH falhou ou contém um formato incompatível.',ts:'O fluxo MPEG-TS/FLV não pôde ser interpretado.',video:'O navegador não conseguiu decodificar este arquivo.'};
+    $('pmsg').textContent = (reason[p.lastPlaybackError]||'Não foi possível reproduzir este conteúdo.')+' Confira a conexão, o acesso à conta ou a compatibilidade do codec.';
     $('ptop').classList.remove('idle');
   }
 
