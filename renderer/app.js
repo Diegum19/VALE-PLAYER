@@ -688,7 +688,7 @@
 
   function playbackErrorMessage(code) {
     const reason={nohls:'Este sistema não conseguiu reproduzir HLS.',nompegts:'O navegador não oferece suporte ao motor MPEG-TS para este fluxo.',nodash:'O motor MPEG-DASH não está disponível.',codec:'O fluxo usa um codec que este sistema não consegue decodificar.',network:'Falha de rede ao carregar o vídeo.',timeout:'O servidor demorou demais para iniciar a reprodução.',hls:'O manifesto HLS falhou ou contém um formato incompatível.',dash:'O manifesto DASH falhou ou contém um formato incompatível.',ts:'O fluxo MPEG-TS/FLV não pôde ser interpretado.',video:'O navegador não conseguiu decodificar este arquivo.'};
-    return (reason[code]||'A reprodução foi interrompida ou não pôde iniciar.')+' Confira a conexão, o acesso à conta ou a compatibilidade do codec.';
+    return 'Não foi possível reproduzir este conteúdo. '+(reason[code]||'A reprodução foi interrompida ou não pôde iniciar.')+' Confira a conexão, o acesso à conta ou a compatibilidade do codec.';
   }
 
   // Tenta tocar uma URL; resolve quando começa a tocar, rejeita em erro ou após 20 s.
