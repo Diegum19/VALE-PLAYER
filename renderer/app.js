@@ -411,56 +411,113 @@
     S.items = out; renderGrid(true);
   }
 
-  // ---- Início ----
+  // ---- Início em trilhos, com destaque cinematográfico ----
   function renderHome() {
     const home = $('home');
     home.innerHTML = '';
 
-    const hero = el('section', 'home-hero');
-    hero.append(
-      el('p', 'home-kicker', 'SUA CENTRAL DE ENTRETENIMENTO'),
-      el('h2', 'home-title', 'O que vamos assistir hoje?'),
-      el('p', 'home-subtitle', 'Entre em uma categoria para explorar seus canais, filmes e séries.')
-    );
-    const categories = el('div', 'home-categories');
-    const choices = [
-      { tab: 'live', cls: 'category-live', icon: 'tv', title: 'TV ao vivo', desc: 'Seus canais, notícias, esportes e muito mais.' },
-      { tab: 'movie', cls: 'category-movie', icon: 'film', title: 'Filmes', desc: 'Descubra seu próximo filme por categoria.' },
-      { tab: 'series', cls: 'category-series', icon: 'clapperboard', title: 'Séries', desc: 'Temporadas e episódios em um só lugar.' },
-    ];
-    for (const item of choices) {
-      const button = el('button', 'category-tile focusable ' + item.cls);
-      button.type = 'button';
-      const top = el('div', 'category-top');
-      const iconBox=el('span','category-icon');iconBox.appendChild(svgIcon(item.icon,30));const arrowBox=el('span','category-arrow');arrowBox.appendChild(svgIcon('arrowUpRight',22));top.append(iconBox,arrowBox);
-      const copy = el('div', 'category-copy');
-      copy.append(el('h3', 'category-title', item.title), el('p', 'category-desc', item.desc));
-      const cta = el('div', 'category-cta');
-      cta.append(el('span', '', 'Explorar catálogo'), svgIcon('arrowRight',16));
-      button.append(top, copy, cta);
-      button.onclick = () => selectTab(item.tab);
-      categories.appendChild(button);
-    }
-    home.append(hero, categories);
+    const cont = Object.values(S.resume).filter((r) => r && r.item && r.d && !hidden(r.kind, r.item)).sort((a, b) => b.at - a.at).slice(0, 20);
+    const recentLive = S.history.filter((h) => h.kind === 'live' && !hidden('live', h.item)).slice(0, 15);
+    const recentVod = S.history.filter((h) => h.kind !== 'live' && !hidden(h.kind, h.item)).slice(0, 20);
+    const favorites = S.favs.filter((f) => !hidden(f.kind, f.item)).slice(0, 20);
+    const featuredResume = cont[0] || null;
+    const featuredHistory = recentVod[0] || null;
+    const featuredFavorite = favorites[0] || null;
+    const featured = featuredResume || featuredHistory || featuredFavorite;
 
-    const section = (title, nodes) => {
+    const hero = el('section', 'home-hero ' + (featured ? 'home-hero-featured' : 'home-hero-welcome'));
+    const artwork = el('img', 'home-hero-backdrop');
+    artwork.alt = ''; artwork.draggable = false; artwork.decoding = 'async';
+    const wash = el('div', 'home-hero-wash');
+    const copy = el('div', 'home-hero-copy');
+    copy.append(el('p', 'home-kicker', featured ? 'EM DESTAQUE PARA VOCÊ' : 'BEM-VINDO AO VELA'));
+    copy.append(el('h2', 'home-title', featured ? C.itemName(featured.item) : 'Sua próxima história começa aqui'));
+    const metaBits = featured ? [featured.kind === 'series' ? 'Série' : featured.kind === 'movie' ? 'Filme' : 'Ao vivo',
+      featured.item && (featured.item.releaseDate || featured.item.releasedate || featured.item.release_date),
+      featured.item && featured.item.rating ? '★ ' + featured.item.rating : ''].filter(Boolean) : ['Filmes', 'Séries', 'TV ao vivo'];
+    copy.append(el('div', 'home-hero-meta', metaBits.join('  •  ')));
+    const synopsis = featured ? (featured.item.plot || featured.item.overview || 'Retome de onde parou ou abra os detalhes para conhecer este conteúdo.') :
+      'Explore seu catálogo, descubra séries e filmes e continue assistindo de onde parou.';
+    const sub = el('p', 'home-subtitle', synopsis); copy.append(sub);
+    const actions = el('div', 'home-hero-actions');
+    const primary = el('button', 'home-hero-play focusable');
+    primary.append(svgIcon('play', 19), document.createTextNode(featuredResume ? 'Continuar assistindo' : featured ? 'Ver detalhes' : 'Explorar filmes'));
+    primary.onclick = () => {
+      if (!featured) return selectTab('movie');
+      if (featuredResume) {
+        if (featured.kind === 'live') return play('live', featured.item, null, featured.title);
+        return play(featured.kind, featured.item, featured.episode || null, featured.title);
+      }
+      openItem(featured.kind, featured.item, 0);
+    };
+    actions.append(primary);
+    const secondary = el('button', 'home-hero-more focusable');
+    secondary.append(svgIcon(featured ? 'info' : 'tv', 18), document.createTextNode(featured ? 'Mais informações' : 'TV ao vivo'));
+    secondary.onclick = () => featured ? openItem(featured.kind, featured.item, 0) : selectTab('live');
+    actions.append(secondary);
+    copy.append(actions);
+    hero.append(artwork, wash, copy);
+
+    if (featured) {
+      const candidates = [];
+      const backdrop = featured.item && (featured.item.backdrop_path || featured.item.backdrop || featured.item.fanart || featured.item.movie_image);
+      if (backdrop) { const url = C.itemPoster({ movie_image: backdrop }, S.session && S.session.host); if (url) candidates.push(url); }
+      candidates.push(...posterCandidates(featured.item, featured.kind));
+      const unique = [...new Set(candidates)].filter(C.isHttpUrl);
+      if (unique.length) {
+        let index = 0;
+        artwork.onerror = () => { if (index < unique.length) artwork.src = unique[index++]; else artwork.classList.add('artwork-unavailable'); };
+        artwork.onload = () => artwork.classList.add('is-ready');
+        artwork.src = unique[index++];
+      }
+      if (!featured.item.plot && featured.kind !== 'live') {
+        fetchDetails(featured.kind, featured.item).then((data) => {
+          if (!hero.isConnected) return;
+          const info = data && data.info || {};
+          const plot = info.plot || info.description;
+          if (plot) sub.textContent = plot;
+          const d = info.backdrop_path || info.backdrop || info.movie_image;
+          const url = d && C.itemPoster({movie_image:d}, S.session && S.session.host);
+          if (url && !artwork.classList.contains('is-ready')) artwork.src = url;
+        }).catch(()=>{});
+      }
+    }
+    home.appendChild(hero);
+
+    const shortcuts = el('div', 'home-shortcuts');
+    for (const item of [
+      {tab:'movie', icon:'film', label:'Filmes'},
+      {tab:'series', icon:'clapperboard', label:'Séries'},
+      {tab:'live', icon:'tv', label:'TV ao vivo'},
+      {tab:'favs', icon:'star', label:'Minha lista'}
+    ]) {
+      const b = el('button', 'home-shortcut focusable');
+      b.append(svgIcon(item.icon,18), el('span','',item.label), svgIcon('arrowRight',15));
+      b.onclick = () => selectTab(item.tab);
+      shortcuts.appendChild(b);
+    }
+    home.appendChild(shortcuts);
+
+    const section = (title, nodes, extraClass='') => {
       if (!nodes.length) return;
-      const sec = el('div', 'sec');
-      sec.append(el('h3', '', title));
+      const sec = el('section', 'sec ' + extraClass);
+      const heading = el('div','sec-heading');
+      heading.append(el('h3','',title));
+      const hint = el('span','sec-hint','Explorar'); hint.appendChild(svgIcon('arrowRight',14));
+      heading.appendChild(hint); sec.appendChild(heading);
       const row = el('div', 'hrow');
       nodes.forEach((n) => row.appendChild(n));
-      sec.appendChild(row);
-      home.appendChild(sec);
+      sec.appendChild(row); home.appendChild(sec);
     };
-    const cont = Object.values(S.resume).filter((r) => r && r.item && r.d && !hidden(r.kind, r.item)).sort((a, b) => b.at - a.at).slice(0, 20);
-    section('Continuar assistindo', cont.map((r) => makeCard({ ...r.item, _kind: r.kind }, 0, r)));
-    const recentLive = S.history.filter((h) => h.kind === 'live' && !hidden('live', h.item)).slice(0, 15);
-    section('Canais recentes', recentLive.map((h) => makeCard({ ...h.item, _kind: 'live' }, 0)));
-    const recentVod = S.history.filter((h) => h.kind !== 'live' && !hidden(h.kind, h.item)).slice(0, 20);
-    section('Assistidos recentemente', recentVod.map((h) => makeCard({ ...h.item, _kind: h.kind }, 0)));
-    section('Favoritos', S.favs.filter((f) => !hidden(f.kind, f.item)).slice(0, 20).map((f) => makeCard({ ...f.item, _kind: f.kind }, 0)));
-    if (!cont.length && !recentLive.length && !recentVod.length && !S.favs.length) {
-      home.appendChild(el('p', 'home-empty-note', 'Quando você assistir a algum conteúdo ou marcar favoritos, eles aparecerão aqui.'));
+    if (cont.length) section('Continue assistindo', cont.map((r) => makeCard({ ...r.item, _kind: r.kind }, 0, r)), 'rail-resume');
+    if (recentVod.length) section('Continue descobrindo', recentVod.map((h) => makeCard({ ...h.item, _kind: h.kind }, 0)), 'rail-recent');
+    if (favorites.length) section('Minha lista', favorites.map((f) => makeCard({ ...f.item, _kind: f.kind }, 0)), 'rail-favorites');
+    if (recentLive.length) section('Seus canais recentes', recentLive.map((h) => makeCard({ ...h.item, _kind: 'live' }, 0)), 'rail-live');
+    if (!cont.length && !recentLive.length && !recentVod.length && !favorites.length) {
+      const empty = el('div','home-empty-note');
+      empty.append(svgIcon('sailboat',24), el('p','','Sua biblioteca vai ganhar vida conforme você explora.'));
+      empty.append(el('span','','Abra Filmes, Séries ou TV ao vivo para começar.'));
+      home.appendChild(empty);
     }
   }
 
@@ -572,13 +629,33 @@
     }
   }
 
-  function showSeason(s) {
+  function showSeason(s, focusEpisodeId = '') {
+    if (!cur || !s) return;
+    cur.selectedSeason = Number(s.season);
     document.querySelectorAll('#seasons button').forEach((b) => b.classList.toggle('on', Number(b.dataset.s) === s.season));
     const box = $('episodes'); box.innerHTML = ''; const item = cur.item;
-    s.episodes.forEach((ep) => {
-      const r = S.resume[C.resumeKey('series', item, ep)];
-      const b = el('button', 'focusable', `E${ep.episode_num || '?'} — ${ep.title || 'Episódio'}` + (r ? `  ·  parou em ${C.fmtTime(r.t)}` : ''));
-      b.onclick = () => { closeDetail(); play('series', item, ep, `${C.itemName(item)} — T${s.season}E${ep.episode_num}`); };
+    s.episodes.forEach((ep, index) => {
+      const episodeId = C.itemId(ep);
+      const resume = S.resume[C.resumeKey('series', item, ep)];
+      const b = el('button', 'episode-card focusable' + (episodeId && episodeId === focusEpisodeId ? ' episode-current' : ''));
+      b.dataset.episodeId = episodeId; b.type = 'button';
+      const thumb = el('div','episode-thumb');
+      const poster = C.itemPoster({movie_image: ep.info && (ep.info.movie_image || ep.info.cover), movie_cover: ep.movie_image || ep.cover || ep.stream_icon}, S.session && S.session.host);
+      if (poster) { const image = el('img'); image.alt=''; image.loading='lazy'; image.decoding='async'; image.referrerPolicy='no-referrer'; image.src=poster; image.onerror=()=>image.remove(); thumb.appendChild(image); }
+      thumb.append(el('span','episode-index',String(ep.episode_num || index + 1).padStart(2,'0')));
+      thumb.appendChild(svgIcon('play',23));
+      const content = el('div','episode-copy');
+      content.append(el('strong','episode-title',ep.title || ('Episódio ' + (ep.episode_num || index + 1))));
+      content.append(el('span','episode-meta','Episódio ' + (ep.episode_num || index + 1) + (ep.info && ep.info.duration ? ' · ' + ep.info.duration : '')));
+      const desc = (ep.info && (ep.info.plot || ep.info.description)) || ep.plot || '';
+      content.append(el('span','episode-description',desc || (resume ? 'Continue do ponto em que você parou.' : 'Selecione para assistir este episódio.')));
+      if (resume && resume.d) { const progress = el('div','episode-progress'); const fill = el('i'); fill.style.width=Math.min(100,Math.max(0,resume.t/resume.d*100))+'%'; progress.appendChild(fill); content.append(progress); }
+      b.append(thumb,content);
+      b.onclick = () => {
+        cur.selectedSeason = Number(s.season); cur.selectedEpisodeId = episodeId;
+        $('detail').classList.add('hidden');
+        play('series', item, ep, `${C.itemName(item)} — T${s.season}E${ep.episode_num}`, { returnToDetail:true, returnSeason:Number(s.season), returnEpisodeId:episodeId });
+      };
       box.appendChild(b);
     });
   }
@@ -755,7 +832,7 @@
     const rkey = C.resumeKey(kind, item, episode);
     const list = opts.list || null;
     const idx = list ? list.findIndex((x) => C.itemId(x) === C.itemId(item)) : -1;
-    const p = (pl = { kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, dash: null, stopped: false, lastPlaybackError: '' });
+    const p = (pl = { kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, dash: null, stopped: false, lastPlaybackError: '', returnToDetail:!!opts.returnToDetail, returnSeason:opts.returnSeason||null, returnEpisodeId:opts.returnEpisodeId||'' });
     $('player').classList.remove('hidden'); $('ptitle').textContent = title;
     $('pmsg').textContent = 'Carregando…'; $('pback').focus(); updatePlayerFav(); seekDragging=false;$('seek').value='0';$('qualityWrap').classList.add('hidden');$('quality').replaceChildren(new Option('Automática','-1'));updatePlayerUI();$('playerControls').classList.remove('idle');$('ptop').classList.remove('idle');
     $('pinfo').classList.add('hidden');
@@ -816,7 +893,22 @@
     saveResume(); pl.stopped = true; cleanup(pl); resetVideo(); pl = null;
   }
   function closePlayer() {
+    const returnToDetail = !!(pl && pl.returnToDetail && cur);
+    const returnSeason = pl && pl.returnSeason || (cur && cur.selectedSeason);
+    const returnEpisodeId = pl && pl.returnEpisodeId || (cur && cur.selectedEpisodeId);
     stopPlayback(); $('player').classList.add('hidden'); $('pmsg').textContent = ''; togglePlayerFullscreen(false);
+    if (returnToDetail && cur) {
+      $('detail').classList.remove('hidden');
+      const season = cur.seasons.find((item) => Number(item.season) === Number(returnSeason)) || cur.seasons.find((item) => Number(item.season) === Number(cur.selectedSeason));
+      if (season) showSeason(season);
+      requestAnimationFrame(() => {
+        const buttons = [...$('episodes').querySelectorAll('button')];
+        const target = buttons.find((b) => b.dataset.episodeId === returnEpisodeId);
+        const focus = target || $('detailClose');
+        focus.focus(); focus.scrollIntoView({block:'nearest',inline:'nearest'});
+      });
+      return;
+    }
     if (S.tab === 'home' || S.tab === 'history') selectTab(S.tab);
   }
   $('pback').onclick = closePlayer;
