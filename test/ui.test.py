@@ -43,6 +43,20 @@ try:
         pg.click('#dplay')
         pg.wait_for_function("document.getElementById('video').currentTime>0.5", timeout=15000)
         check(True, 'filme toca no player embutido')
+        # Injeta falha transitória para verificar a recuperação de rede mantendo o tempo de reprodução.
+        recovery = pg.evaluate("""() => {
+          const v = document.getElementById('video');
+          v.currentTime = 8;
+          window.__recoveryMetadata = false;
+          v.addEventListener('loadedmetadata', () => { window.__recoveryMetadata = true; }, { once: true });
+          v.dispatchEvent(new Event('error'));
+          return true;
+        }""")
+        check(recovery, 'falha transitória simulada')
+        pg.wait_for_function("document.getElementById('pmsg').textContent.includes('Reconectando o vídeo a partir de')", timeout=2500)
+        pg.wait_for_function("window.__recoveryMetadata === true", timeout=10000)
+        pg.wait_for_function("document.getElementById('video').currentTime >= 7 && document.getElementById('pmsg').textContent === ''", timeout=10000)
+        check(True, 'erro temporário recupera a reprodução a partir da posição anterior')
         # Teste de estresse: 1.000 operações de seek, saltos, setas e pausa/retomada.
         stress = pg.evaluate("""() => {
           const v = document.getElementById('video'), seek = document.getElementById('seek');
@@ -72,20 +86,6 @@ try:
         check(pg.locator('.player-main-actions').locator('button').nth(0).get_attribute('id') == 'skipBack', 'retroceder fica à esquerda')
         check(pg.locator('.player-main-actions').locator('button').nth(1).get_attribute('id') == 'playPause', 'play/pausa fica no centro')
         check(pg.locator('.player-main-actions').locator('button').nth(2).get_attribute('id') == 'skipForward', 'avançar fica à direita')
-        # Injeta falha transitória para verificar a recuperação de rede mantendo o tempo de reprodução.
-        recovery = pg.evaluate("""() => {
-          const v = document.getElementById('video');
-          v.currentTime = 8;
-          window.__recoveryMetadata = false;
-          v.addEventListener('loadedmetadata', () => { window.__recoveryMetadata = true; }, { once: true });
-          v.dispatchEvent(new Event('error'));
-          return true;
-        }""")
-        check(recovery, 'falha transitória simulada')
-        pg.wait_for_function("document.getElementById('pmsg').textContent.includes('Reconectando o vídeo a partir de')", timeout=2500)
-        pg.wait_for_function("window.__recoveryMetadata === true", timeout=10000)
-        pg.wait_for_function("document.getElementById('video').currentTime >= 7 && document.getElementById('pmsg').textContent === ''", timeout=10000)
-        check(True, 'erro temporário recupera a reprodução a partir da posição anterior')
         pg.wait_for_timeout(500); pg.keyboard.press('ArrowRight'); pg.wait_for_timeout(300)
         check(pg.evaluate("document.getElementById('video').currentTime")>10, 'seta direita avança 10 s')
         pg.keyboard.press('Escape')
