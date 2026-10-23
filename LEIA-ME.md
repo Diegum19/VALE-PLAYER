@@ -1,4 +1,4 @@
-# Vela Player 0.5.0 (PC / Windows 10-11 64 bits)
+# Vela Player 0.6.0 (PC / Windows 10-11 64 bits)
 
 App de PC com **reprodutor embutido**: o cliente baixa **um único arquivo**
 (`Instalar-Vela-Player.exe`), dá dois cliques e abre pelo atalho. Sem CMD, sem ZIP,
@@ -9,7 +9,12 @@ sem VLC, sem Python, sem internet durante a instalação, sem administrador.
 2. Aba **Actions → Gerar instalador Windows → Run workflow**.
 3. Baixe `Instalar-Vela-Player.exe` em *Artifacts* no fluxo concluído.
 
-## Novidades da 0.5.0
+## Novidades da 0.6.0
+- **Controles centralizados:** play/pausa e saltos de 10 segundos ficam no centro geométrico do player; ícones refeitos sem etiquetas deslocadas.
+- **Próximo episódio:** cartão cinematográfico aparece no último minuto do episódio (proporcionalmente em vídeos curtos), com miniatura e botão para avançar agora ou cancelar.
+- **Avanço automático configurável:** ativado por padrão, com contagem final de 5 ou 10 segundos; o contador acompanha o tempo do vídeo e congela quando ele pausa.
+- **Transição de episódios:** encontra o próximo episódio na mesma temporada ou na seguinte sem reiniciar a navegação do usuário.
+- **Teste de estresse do player:** centenas de operações de seek, saltos, teclado e pausa/retomada, mais testes do avanço manual e automático.
 - **Player moderno:** barra de progresso própria, tempos decorrido/total, indicação do buffer, busca, play/pause, saltos de 10 segundos e volume.
 - **Pôsteres corrigidos:** a grade reserva altura real para cada capa, prefere campos próprios de pôster em vez de logos/backdrops e busca metadados ao entrar na área visível. Só capas válidas são guardadas em cache.
 - **Tela de detalhes estável:** mantém a capa vertical já carregada, evita a troca brusca entre imagens e usa ajuste sem corte para evitar o efeito de zoom.
