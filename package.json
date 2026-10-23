@@ -1,8 +1,8 @@
 {
   "name": "vela-player",
   "productName": "Vela Player",
-  "version": "0.5.0",
-  "description": "Vela Player - interface cinematográfica, trilhos de conteúdo e navegação de episódios aprimorada",
+  "version": "0.6.0",
+  "description": "Vela Player - player cinematográfico com avanço automático de episódios e controles centralizados",
   "main": "main.js",
   "author": "Vela Player",
   "license": "UNLICENSED",
