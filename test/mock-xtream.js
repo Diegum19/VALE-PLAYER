@@ -19,7 +19,7 @@ http.createServer((req, res) => {
         return j({ epg_listings: [{ title: b('Jornal Agora'), description: b('d'), start_timestamp: String(n - 600), stop_timestamp: String(n + 600) }, { title: b('Novela das Nove'), description: b(''), start_timestamp: String(n + 600), stop_timestamp: String(n + 4200) }] }); }
       case 'get_vod_info': return j({ info: { plot: 'Sinopse do filme.', cast: 'Ator Um', director: 'Diretora X', duration: '1h 40m' }, movie_data: { container_extension: q.get('vod_id') === '8' ? 'mkv' : 'webm' } });
       case 'get_series': return j([{ series_id: 3, name: 'Série Um', category_id: '2', plot: 'Uma série.' }]);
-      case 'get_series_info': return j({ episodes: { 1: [{ id: '31', episode_num: 1, title: 'Piloto', container_extension: 'webm' }, { id: '32', episode_num: 2, title: 'Segundo', container_extension: 'webm' }], 2: [{ id: '33', episode_num: 1, title: 'Volta', container_extension: 'webm' }] } });
+      case 'get_series_info': return j({ episodes: { 1: [{ id: '31', episode_num: 1, title: 'Piloto', container_extension: 'webm', info: { plot: 'Primeiro episódio de teste.' } }, { id: '32', episode_num: 2, title: 'Segundo', container_extension: 'webm', info: { plot: 'Segundo episódio de teste.' } }], 2: [{ id: '33', episode_num: 1, title: 'Volta', container_extension: 'webm', info: { plot: 'Primeiro episódio da segunda temporada.' } }] } });
     }
     return j([]);
   }
