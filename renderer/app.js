@@ -899,7 +899,8 @@
 
   function nextNoticeWindow(duration) {
     if (!Number.isFinite(duration) || duration <= 0) return 0;
-    return Math.min(60, Math.max(nextCountdownSeconds() + 1, duration * 0.2));
+    if (duration > 60) return 60;
+    return Math.min(duration, Math.max(nextCountdownSeconds() + 1, duration * 0.2));
   }
 
   function resolveNextEpisode(p) {
