@@ -900,7 +900,7 @@
     if (returnToDetail && cur) {
       $('detail').classList.remove('hidden');
       const season = cur.seasons.find((item) => Number(item.season) === Number(returnSeason)) || cur.seasons.find((item) => Number(item.season) === Number(cur.selectedSeason));
-      if (season) showSeason(season);
+      if (season) showSeason(season, returnEpisodeId || '');
       requestAnimationFrame(() => {
         const buttons = [...$('episodes').querySelectorAll('button')];
         const target = buttons.find((b) => b.dataset.episodeId === returnEpisodeId);
