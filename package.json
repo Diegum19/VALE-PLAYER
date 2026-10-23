@@ -1,8 +1,8 @@
 {
   "name": "vela-player",
   "productName": "Vela Player",
-  "version": "0.4.0",
-  "description": "Vela Player - HLS, DASH, MPEG-TS, FLV e qualidade adaptativa",
+  "version": "0.5.0",
+  "description": "Vela Player - interface cinematográfica, trilhos de conteúdo e navegação de episódios aprimorada",
   "main": "main.js",
   "author": "Vela Player",
   "license": "UNLICENSED",
