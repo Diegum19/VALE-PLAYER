@@ -333,3 +333,44 @@ header{background:#101010ee;border-bottom-color:#282828;padding:15px 28px;backdr
   #nextEpisodeTitle{font-size:15px}
 }
 @media(prefers-reduced-motion:reduce){.next-episode{animation:none}}
+
+/* Vela Player 0.8.0 — true centered transport controls and a compact next-episode card */
+.player-controls-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:16px;width:100%}
+.player-main-actions{grid-column:2;grid-row:1;justify-self:center;display:flex;align-items:center;justify-content:center;gap:clamp(12px,1.6vw,22px);min-width:max-content}
+.player-secondary-actions{grid-column:3;grid-row:1;justify-self:end;display:flex;align-items:center;justify-content:flex-end;gap:clamp(8px,1.3vw,16px);min-width:0}
+.player-main-actions .skip-action{width:48px;height:48px;min-width:48px;flex:0 0 48px;display:inline-flex;align-items:center;justify-content:center;padding:0;border-radius:50%;line-height:0}
+.player-main-actions #playPause{width:64px;height:64px;min-width:64px;flex:0 0 64px;display:inline-flex;align-items:center;justify-content:center;padding:0;border-radius:50%;line-height:0}
+#playPause svg{width:28px;height:28px;display:block}
+#skipBack svg,#skipForward svg{width:30px;height:30px;display:block;overflow:visible}
+#skipBack small,#skipForward small{display:none!important}
+.player-main-actions .skip-action:hover{background:#2b2e35;transform:scale(1.05)}
+.player-main-actions #playPause:hover{background:#e7e7e7;transform:scale(1.045)}
+.player-controls-row>.player-main-actions{position:relative;left:0;right:0}
+.next-episode{right:clamp(16px,3vw,40px);bottom:clamp(140px,19vh,180px);width:min(352px,calc(100vw - 32px));padding:12px;border-radius:8px}
+.next-episode-kicker{font-size:9px;letter-spacing:1.25px;margin-bottom:9px}
+.next-episode-body{grid-template-columns:104px minmax(0,1fr);gap:11px}
+.next-episode-art>svg{width:24px;height:24px}
+#nextSeriesLabel{font-size:10px;margin-bottom:4px}
+#nextEpisodeTitle{font-size:15px;line-height:1.22;margin-bottom:6px}
+#nextCountdown{font-size:11px;min-height:15px}
+.next-countdown-track{margin-top:7px;height:3px}
+.next-episode-actions{margin-top:11px;gap:7px}
+.next-episode-actions button{min-height:34px;padding:7px 10px;font-size:11px}
+.next-play svg{width:14px;height:14px}
+@media(max-width:900px){
+  .player-controls-row{gap:8px}
+  .player-main-actions{gap:clamp(8px,1.8vw,16px)}
+  .player-main-actions .skip-action{width:44px;height:44px;min-width:44px;flex-basis:44px}
+  .player-main-actions #playPause{width:58px;height:58px;min-width:58px;flex-basis:58px}
+  .next-episode{bottom:clamp(132px,21vh,170px);width:min(340px,calc(100vw - 28px))}
+}
+@media(max-width:620px){
+  .player-controls-row{grid-template-columns:1fr;justify-items:center;row-gap:13px}
+  .player-main-actions{grid-column:1;grid-row:1;justify-self:center;gap:15px}
+  .player-secondary-actions{grid-column:1;grid-row:2;justify-self:center;gap:18px}
+  .player-main-actions .skip-action{width:43px;height:43px;min-width:43px;flex-basis:43px}
+  .player-main-actions #playPause{width:56px;height:56px;min-width:56px;flex-basis:56px}
+  .next-episode{right:10px;bottom:172px;width:calc(100vw - 20px);padding:11px}
+  .next-episode-body{grid-template-columns:96px minmax(0,1fr);gap:10px}
+  #nextEpisodeTitle{font-size:14px}
+}
