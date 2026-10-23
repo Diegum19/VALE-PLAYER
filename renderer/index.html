@@ -74,9 +74,17 @@
   <video id="video" playsinline></video><div class="player-vignette" aria-hidden="true"></div>
   <div id="ptop"><button id="pback" class="player-back focusable"><span data-icon="back"></span><span>Voltar</span></button><span id="ptitle"></span><span class="grow"></span><button id="pfav" class="icon-button focusable" aria-label="Adicionar aos favoritos"><span data-icon="star"></span></button></div>
   <div id="pinfo" class="hidden"></div><div id="pnum" class="hidden"></div><div id="pmsg" role="status" aria-live="polite"></div>
+  <section id="nextEpisode" class="next-episode hidden" aria-hidden="true" aria-live="polite" aria-label="Próximo episódio">
+    <div class="next-episode-kicker"><span class="next-live-dot"></span><span>EM SEGUIDA</span><span class="next-card-spacer"></span><span id="nextEpisodeTag">PRÓXIMO</span></div>
+    <div class="next-episode-body">
+      <div class="next-episode-art"><img id="nextPoster" class="hidden" alt="" loading="lazy" decoding="async"><span data-icon="clapperboard"></span></div>
+      <div class="next-episode-copy"><p id="nextSeriesLabel"></p><h3 id="nextEpisodeTitle"></h3><p id="nextCountdown"></p><div class="next-countdown-track"><i id="nextCountdownProgress"></i></div></div>
+    </div>
+    <div class="next-episode-actions"><button id="nextPlay" class="next-play focusable"><span data-icon="play"></span><span>Assistir agora</span></button><button id="nextDismiss" class="next-dismiss focusable">Cancelar</button></div>
+  </section>
   <div id="playerControls" class="player-controls"><div id="seekArea" class="seek-area"><input id="seek" class="seek-slider" type="range" min="0" max="1000" value="0" aria-label="Posição do vídeo"><div class="player-time"><span id="elapsedTime">0:00</span><span id="durationTime">0:00</span></div></div>
     <div id="liveLabel" class="live-label hidden"><span class="live-dot"></span><span data-icon="radio"></span><span>AO VIVO</span></div>
-    <div class="player-controls-row"><div class="player-main-actions"><button id="playPause" class="player-action primary focusable" aria-label="Pausar"><span data-icon="pause"></span></button><button id="skipBack" class="player-action focusable" aria-label="Voltar 10 segundos"><span data-icon="skipBack"></span><small>10</small></button><button id="skipForward" class="player-action focusable" aria-label="Avançar 10 segundos"><span data-icon="skipForward"></span><small>10</small></button></div>
+    <div class="player-controls-row"><div class="player-main-actions"><button id="playPause" class="player-action primary focusable" aria-label="Pausar"><span data-icon="pause"></span></button><button id="skipBack" class="player-action skip-action focusable" aria-label="Voltar 10 segundos" title="Voltar 10 segundos"><span data-icon="skipBack"></span></button><button id="skipForward" class="player-action skip-action focusable" aria-label="Avançar 10 segundos" title="Avançar 10 segundos"><span data-icon="skipForward"></span></button></div>
       <div class="player-secondary-actions"><label id="qualityWrap" class="quality-control hidden" aria-label="Qualidade do vídeo"><span data-icon="quality"></span><select id="quality" aria-label="Qualidade do vídeo"><option value="-1">Automática</option></select></label><label class="volume-control" aria-label="Volume"><span data-icon="volume"></span><input id="volume" type="range" min="0" max="1" step="0.05" value="1" aria-label="Volume"></label><button id="pFullscreen" class="player-action focusable" aria-label="Tela cheia"><span data-icon="fullscreen"></span></button></div></div></div>
 </div>
 
