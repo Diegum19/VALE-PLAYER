@@ -1,4 +1,4 @@
-# Vela Player 0.4.0 (PC / Windows 10-11 64 bits)
+# Vela Player 0.5.0 (PC / Windows 10-11 64 bits)
 
 App de PC com **reprodutor embutido**: o cliente baixa **um único arquivo**
 (`Instalar-Vela-Player.exe`), dá dois cliques e abre pelo atalho. Sem CMD, sem ZIP,
@@ -9,17 +9,22 @@ sem VLC, sem Python, sem internet durante a instalação, sem administrador.
 2. Aba **Actions → Gerar instalador Windows → Run workflow**.
 3. Baixe `Instalar-Vela-Player.exe` em *Artifacts* no fluxo concluído.
 
-## Novidades da 0.4.0
+## Novidades da 0.5.0
 - **Player moderno:** barra de progresso própria, tempos decorrido/total, indicação do buffer, busca, play/pause, saltos de 10 segundos e volume.
 - **Pôsteres corrigidos:** a grade reserva altura real para cada capa, prefere campos próprios de pôster em vez de logos/backdrops e busca metadados ao entrar na área visível. Só capas válidas são guardadas em cache.
 - **Tela de detalhes estável:** mantém a capa vertical já carregada, evita a troca brusca entre imagens e usa ajuste sem corte para evitar o efeito de zoom.
+- **Interface cinematográfica:** início com destaque visual, imagem de fundo quando disponível, botões de ação e trilhos horizontais de conteúdo no estilo dos serviços de streaming.
+- **Navegação consistente em séries:** ao voltar do episódio, o app retorna para a mesma tela de temporadas/episódios, destaca o episódio que estava tocando e devolve o foco a ele.
+- **Episódios redesenhados:** miniaturas 16:9 quando fornecidas pelo servidor, numeração, título, descrição e barra de progresso da retomada.
+- **Hierarquia visual renovada:** fundo preto, detalhes em vermelho, cartões com hover, seções mais claras, botões alinhados e layout adaptado a telas menores.
+- **Minha lista:** a navegação dos favoritos recebeu um nome mais familiar e continua usando o mesmo armazenamento.
 - **Player único:** sem troca automática de janela; erros que acontecem durante a reprodução agora exibem uma mensagem útil.
 - **Compatibilidade ampliada:** HLS com hls.js, MPEG-DASH com dash.js, MPEG-TS e FLV com mpegts.js, além dos formatos nativos suportados pelo Chromium/Electron.
 - **Qualidade de vídeo:** seletor para escolher resolução manual em manifestos HLS/DASH ou manter a qualidade automática, sem limitar os níveis à dimensão do player.
 - **Diagnóstico:** configuração mostra o suporte que o sistema reporta para H.264/AAC, HEVC, AV1, VP9 e MPEG-TS.
 - **Ícone novo:** vela estilizada em ciano/branco sobre fundo azul-marinho, aplicada à tela de login, janela e instalador.
 - **Motores atualizados:** Electron/Chromium, HLS.js, MPEG-TS e dash.js foram atualizados para versões estáveis atuais.
-- **Testes adicionais:** CI valida sintaxe, lógica do núcleo e fluxo de interface usando Chromium e servidor Xtream simulado.
+- **Testes ampliados:** CI valida sintaxe, lógica do núcleo, interface usando Chromium e servidor Xtream simulado, reprodução de um vídeo WebM e retorno à temporada/episódio após fechar o player.
 - **Controles alinhados:** os números dos saltos de 10 segundos ficam dentro dos botões e os controles/sinopse receberam ajustes de alinhamento.
 - **Ícones e rolagem:** SVGs consistentes e barras de rolagem personalizadas.
 - **Página inicial redesenhada:** TV ao vivo, Filmes e Séries em cartões grandes centralizados.
