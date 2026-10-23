@@ -870,13 +870,14 @@
       return;
     }
     const time = Number.isFinite(V.currentTime) ? Math.max(0, V.currentTime) : ((S.resume[p.rkey] || {}).t || 0);
+    const wasPaused = V.paused;
     p.runtimeRecovering = true; p.lastPlaybackError = reason || 'network';
     $('pmsg').textContent = 'Reconectando o vídeo a partir de ' + C.fmtTime(time) + '…';
     $('ptop').classList.remove('idle'); $('playerControls').classList.remove('idle');
     clearTimeout(p.recoverTimer);
     p.recoverTimer = setTimeout(() => {
       if (p !== pl || p.stopped) return;
-      play(p.kind, p.item, p.episode, p.title, { list:p.list, idx:p.idx, returnToDetail:p.returnToDetail, returnSeason:p.returnSeason, returnEpisodeId:p.returnEpisodeId, seriesSeasons:p.seriesSeasons, startAt:time, runtimeRetries:nextTry });
+      play(p.kind, p.item, p.episode, p.title, { list:p.list, idx:p.idx, returnToDetail:p.returnToDetail, returnSeason:p.returnSeason, returnEpisodeId:p.returnEpisodeId, seriesSeasons:p.seriesSeasons, startAt:time, runtimeRetries:nextTry, pauseAfterRecovery:wasPaused });
     }, 650);
   }
   V.addEventListener('error', () => {
@@ -892,7 +893,7 @@
     const rkey = C.resumeKey(kind, item, episode);
     const list = opts.list || null;
     const idx = list ? list.findIndex((x) => C.itemId(x) === C.itemId(item)) : -1;
-    const p = (pl = { kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, dash: null, stopped: false, lastPlaybackError: '', returnToDetail:!!opts.returnToDetail, returnSeason:opts.returnSeason||null, returnEpisodeId:opts.returnEpisodeId||'', seriesSeasons:Array.isArray(opts.seriesSeasons)?opts.seriesSeasons:null, nextEpisode:null, nextEpisodeResolved:false, nextEpisodeLoading:false, nextEpisodePromise:null, nextDismissed:false, nextAutoTriggered:false, runtimeRetries:Number(opts.runtimeRetries)||0, runtimeRecovering:false, recoverTimer:null });
+    const p = (pl = { kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, dash: null, stopped: false, lastPlaybackError: '', returnToDetail:!!opts.returnToDetail, returnSeason:opts.returnSeason||null, returnEpisodeId:opts.returnEpisodeId||'', seriesSeasons:Array.isArray(opts.seriesSeasons)?opts.seriesSeasons:null, nextEpisode:null, nextEpisodeResolved:false, nextEpisodeLoading:false, nextEpisodePromise:null, nextDismissed:false, nextAutoTriggered:false, runtimeRetries:Number(opts.runtimeRetries)||0, runtimeRecovering:false, recoverTimer:null, pauseAfterRecovery:opts.pauseAfterRecovery===true });
     $('player').classList.remove('hidden'); $('ptitle').textContent = title;
     $('pmsg').textContent = 'Carregando…'; $('pback').focus(); updatePlayerFav(); seekDragging=false;$('seek').value='0';$('qualityWrap').classList.add('hidden');$('quality').replaceChildren(new Option('Automática','-1'));updatePlayerUI();$('playerControls').classList.remove('idle');$('ptop').classList.remove('idle');
     $('pinfo').classList.add('hidden'); hideNextEpisodePrompt();
@@ -904,7 +905,7 @@
     for (const url of urls) {
       if (p.stopped) return;
       cleanup(p); resetVideo();
-      try { await attempt(p, modeFor(kind, url), url, startAt); if (!p.stopped) { p.started = true; $('pmsg').textContent = ''; bumpUi(); } return; }
+      try { await attempt(p, modeFor(kind, url), url, startAt); if (!p.stopped) { p.started = true; $('pmsg').textContent = ''; if (p.pauseAfterRecovery) V.pause(); bumpUi(); } return; }
       catch (e) { /* tenta a próxima URL disponível */ }
     }
     if (p.stopped) return;
@@ -1106,8 +1107,14 @@
   $('player').addEventListener('mousemove', bumpUi);
   V.addEventListener('dblclick', () => togglePlayerFullscreen());
   V.addEventListener('click', () => { V.paused ? V.play() : V.pause(); });
-  V.addEventListener('waiting', () => { if (pl) $('pmsg').textContent = 'Carregando…'; });
-  V.addEventListener('playing', () => { if (pl) $('pmsg').textContent = ''; updatePlayerUI(); });
+  V.addEventListener('waiting', () => { if (pl && !pl.runtimeRecovering) $('pmsg').textContent = 'Carregando…'; });
+  V.addEventListener('playing', () => {
+    if (pl && pl.runtimeRecovering && pl.recoverTimer) {
+      clearTimeout(pl.recoverTimer); pl.recoverTimer = null; pl.runtimeRecovering = false;
+    }
+    if (pl) $('pmsg').textContent = '';
+    updatePlayerUI();
+  });
 
   // ---- Teclado e controle remoto ----
   document.addEventListener('keydown', (e) => {
