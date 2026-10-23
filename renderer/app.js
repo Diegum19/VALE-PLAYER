@@ -808,7 +808,7 @@
   function attempt(p, mode, url, startAt) {
     return new Promise((resolve, reject) => {
       let done = false;
-      const fail = (m) => { p.lastPlaybackError=m; if (!done) { done = true; clearTimeout(timer); V.removeEventListener('playing', ok); V.removeEventListener('error', onErr); reject(new Error(m)); } else if (!p.stopped) { if (p.kind === 'live') runtimeError(p); else { $('pmsg').textContent = playbackErrorMessage(m); $('ptop').classList.remove('idle'); $('playerControls').classList.remove('idle'); } } };
+      const fail = (m) => { p.lastPlaybackError=m; if (!done) { done = true; clearTimeout(timer); V.removeEventListener('playing', ok); V.removeEventListener('error', onErr); reject(new Error(m)); } else if (!p.stopped) runtimeError(p, m); };
       const ok = () => { if (!done) { done = true; clearTimeout(timer); V.removeEventListener('error', onErr); resolve(); } };
       const onErr = () => fail('video');
       const timer = setTimeout(() => fail('timeout'), 20000);
@@ -846,20 +846,37 @@
   }
 
   // Queda no meio da transmissão ao vivo: reconecta sozinho (até 3 vezes).
-  function runtimeError(p) {
-    if (p !== pl || p.stopped || p.kind !== 'live' || p.reconnecting) return;
-    if ((p.retries = (p.retries || 0) + 1) > 3) { $('pmsg').textContent = 'A transmissão caiu. Tente outro canal ou volte mais tarde.'; return; }
-    p.reconnecting = true; $('pmsg').textContent = 'Reconectando…';
-    setTimeout(() => { if (p === pl && !p.stopped) play(p.kind, p.item, p.episode, p.title, { list: p.list, idx: p.idx, retries: p.retries }); }, 1500);
+  function runtimeError(p, reason = 'network') {
+    if (p !== pl || p.stopped || p.runtimeRecovering) return;
+    if (p.kind === 'live') {
+      if (p.reconnecting) return;
+      if ((p.retries = (p.retries || 0) + 1) > 3) { $('pmsg').textContent = 'A transmissão caiu. Tente outro canal ou volte mais tarde.'; return; }
+      p.reconnecting = true; $('pmsg').textContent = 'Reconectando…';
+      p.recoverTimer = setTimeout(() => { if (p === pl && !p.stopped) play(p.kind, p.item, p.episode, p.title, { list: p.list, idx: p.idx, retries: p.retries }); }, 1500);
+      return;
+    }
+    const nextTry = (Number(p.runtimeRetries) || 0) + 1;
+    if (nextTry > 2) {
+      p.lastPlaybackError = reason || p.lastPlaybackError || 'network';
+      $('pmsg').textContent = playbackErrorMessage(p.lastPlaybackError);
+      $('ptop').classList.remove('idle'); $('playerControls').classList.remove('idle');
+      return;
+    }
+    const time = Number.isFinite(V.currentTime) ? Math.max(0, V.currentTime) : ((S.resume[p.rkey] || {}).t || 0);
+    p.runtimeRecovering = true; p.lastPlaybackError = reason || 'network';
+    $('pmsg').textContent = 'Reconectando o vídeo a partir de ' + C.fmtTime(time) + '…';
+    $('ptop').classList.remove('idle'); $('playerControls').classList.remove('idle');
+    clearTimeout(p.recoverTimer);
+    p.recoverTimer = setTimeout(() => {
+      if (p !== pl || p.stopped) return;
+      play(p.kind, p.item, p.episode, p.title, { list:p.list, idx:p.idx, returnToDetail:p.returnToDetail, returnSeason:p.returnSeason, returnEpisodeId:p.returnEpisodeId, seriesSeasons:p.seriesSeasons, startAt:time, runtimeRetries:nextTry });
+    }, 650);
   }
   V.addEventListener('error', () => {
     if (!pl || !pl.started || pl.stopped) return;
-    if (pl.kind === 'live') { runtimeError(pl); return; }
     const code = V.error && V.error.code;
     const reason = code === 2 ? 'network' : code === 3 ? 'codec' : 'video';
-    pl.lastPlaybackError = reason;
-    $('pmsg').textContent = playbackErrorMessage(reason);
-    $('ptop').classList.remove('idle'); $('playerControls').classList.remove('idle');
+    runtimeError(pl, reason);
   });
 
   async function play(kind, item, episode, title, opts = {}) {
@@ -868,7 +885,7 @@
     const rkey = C.resumeKey(kind, item, episode);
     const list = opts.list || null;
     const idx = list ? list.findIndex((x) => C.itemId(x) === C.itemId(item)) : -1;
-    const p = (pl = { kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, dash: null, stopped: false, lastPlaybackError: '', returnToDetail:!!opts.returnToDetail, returnSeason:opts.returnSeason||null, returnEpisodeId:opts.returnEpisodeId||'', seriesSeasons:Array.isArray(opts.seriesSeasons)?opts.seriesSeasons:null, nextEpisode:null, nextEpisodeResolved:false, nextEpisodeLoading:false, nextEpisodePromise:null, nextDismissed:false, nextAutoTriggered:false });
+    const p = (pl = { kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, dash: null, stopped: false, lastPlaybackError: '', returnToDetail:!!opts.returnToDetail, returnSeason:opts.returnSeason||null, returnEpisodeId:opts.returnEpisodeId||'', seriesSeasons:Array.isArray(opts.seriesSeasons)?opts.seriesSeasons:null, nextEpisode:null, nextEpisodeResolved:false, nextEpisodeLoading:false, nextEpisodePromise:null, nextDismissed:false, nextAutoTriggered:false, runtimeRetries:Number(opts.runtimeRetries)||0, runtimeRecovering:false, recoverTimer:null });
     $('player').classList.remove('hidden'); $('ptitle').textContent = title;
     $('pmsg').textContent = 'Carregando…'; $('pback').focus(); updatePlayerFav(); seekDragging=false;$('seek').value='0';$('qualityWrap').classList.add('hidden');$('quality').replaceChildren(new Option('Automática','-1'));updatePlayerUI();$('playerControls').classList.remove('idle');$('ptop').classList.remove('idle');
     $('pinfo').classList.add('hidden'); hideNextEpisodePrompt();
@@ -876,15 +893,16 @@
     togglePlayerFullscreen(true);
     if (!opts.retries) addHistory(kind, item).catch(() => {});
     if (kind === 'live') startEpg(p);
-    const startAt = kind === 'live' ? 0 : ((S.resume[rkey] || {}).t || 0);
+    const startAt = kind === 'live' ? 0 : (Number.isFinite(Number(opts.startAt)) ? Math.max(0, Number(opts.startAt)) : ((S.resume[rkey] || {}).t || 0));
     for (const url of urls) {
       if (p.stopped) return;
       cleanup(p); resetVideo();
       try { await attempt(p, modeFor(kind, url), url, startAt); if (!p.stopped) { p.started = true; $('pmsg').textContent = ''; bumpUi(); } return; }
-      catch (e) { /* tenta a próxima */ }
+      catch (e) { /* tenta a próxima URL disponível */ }
     }
     if (p.stopped) return;
     cleanup(p); resetVideo();
+    if (kind !== 'live' && p.runtimeRetries > 0 && p.runtimeRetries < 2) { runtimeError(p, p.lastPlaybackError || 'network'); return; }
     $('pmsg').textContent = playbackErrorMessage(p.lastPlaybackError);
     $('ptop').classList.remove('idle');
   }
@@ -1032,6 +1050,7 @@
   function stopPlayback() {
     clearInterval(epgTimer);
     if (!pl) return;
+    clearTimeout(pl.recoverTimer);
     saveResume(); pl.stopped = true; cleanup(pl); resetVideo(); pl = null; hideNextEpisodePrompt();
   }
   function closePlayer() {
