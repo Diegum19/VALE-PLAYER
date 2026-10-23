@@ -3,7 +3,7 @@
   const C = window.VelaCore;
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-  const APP_VERSION = '0.4.0';
+  const APP_VERSION = '0.6.0';
 
   // ---- Adaptador de plataforma: no PC usa o Electron; em outras plataformas (TV) usa a web ----
   const P = window.vela || {
@@ -25,7 +25,7 @@
 
   const S = {
     profiles: [], session: null, pkey: '', tab: 'home', cats: {}, all: {}, catId: '__all__', items: [], view: [], shown: 0,
-    query: '', sort: '', favs: [], history: [], resume: {}, settings: { hideAdult: false, pin: '' }, loadSeq: 0,
+    query: '', sort: '', favs: [], history: [], resume: {}, settings: { hideAdult: false, pin: '', autoNext: true, nextCountdown: 10 }, loadSeq: 0,
     posterCache: {}, detailCache: {}, detailPending: {}, posterPending: {}, posterChecked: {}, posterRetryAt: {},
   };
   const PAGE = 120;
@@ -49,8 +49,8 @@
     back:'<path d="m15 18-6-6 6-6"/><path d="M9 12h12"/>',
     play:'<path d="m8 5 12 7-12 7z" fill="currentColor" stroke="none"/>',
     pause:'<path d="M8 5h3v14H8zM15 5h3v14h-3z" fill="currentColor" stroke="none"/>',
-    skipBack:'<path d="M5 5v14M19 6l-10 6 10 6z"/>',
-    skipForward:'<path d="M19 5v14M5 6l10 6-10 6z"/>',
+    skipBack:'<path d="M8 6a7 7 0 1 1-2.5 5.5"/><path d="M5 3v5h5"/><text x="12.5" y="15.5" fill="currentColor" stroke="none" font-size="6.2" font-weight="850" text-anchor="middle">10</text>',
+    skipForward:'<path d="M16 6a7 7 0 1 0 2.5 5.5"/><path d="M19 3v5h-5"/><text x="11.5" y="15.5" fill="currentColor" stroke="none" font-size="6.2" font-weight="850" text-anchor="middle">10</text>',
     volume:'<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15 9a5 5 0 0 1 0 6M18 6a9 9 0 0 1 0 12"/>',
     volumeMute:'<path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 5 6m0-6-5 6"/>',
     fullscreen:'<path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/>',
@@ -247,7 +247,9 @@
     S.favs = await per('favs', []); S.history = await per('history', []); S.resume = await per('resume', {});
     S.posterCache = await per('posterCache', {});
     S.detailCache = {}; S.detailPending = {}; S.posterPending = {}; S.posterChecked = {}; S.posterRetryAt = {};
-    S.settings = { hideAdult: false, pin: '', ...((await P.storeGet('settings')) || {}) };
+    S.settings = { hideAdult: false, pin: '', autoNext: true, nextCountdown: 10, ...((await P.storeGet('settings')) || {}) };
+    S.settings.autoNext = S.settings.autoNext !== false;
+    S.settings.nextCountdown = Number(S.settings.nextCountdown) === 5 ? 5 : 10;
   }
   async function saveLocal(k, val) { const all = (await P.storeGet(k)) || {}; all[S.pkey] = val; await P.storeSet(k, all); }
 
@@ -626,7 +628,7 @@
       const r = lastSeriesResume(cur.item);
       if (!r) { b.classList.add('hidden'); return; }
       b.textContent = `▶ Continuar ${r.title.split('—').pop().trim()} (${C.fmtTime(r.t)})`;
-      b.onclick = () => { const x = r; $('detail').classList.add('hidden'); play('series', x.item, x.episode, x.title, { returnToDetail:true, returnSeason:Number(x.season)||cur.selectedSeason, returnEpisodeId:C.itemId(x.episode) }); };
+      b.onclick = () => { const x = r; $('detail').classList.add('hidden'); play('series', x.item, x.episode, x.title, { returnToDetail:true, returnSeason:Number(x.season)||cur.selectedSeason, returnEpisodeId:C.itemId(x.episode), seriesSeasons:cur.seasons }); };
     }
   }
 
@@ -655,7 +657,7 @@
       b.onclick = () => {
         cur.selectedSeason = Number(s.season); cur.selectedEpisodeId = episodeId;
         $('detail').classList.add('hidden');
-        play('series', item, ep, `${C.itemName(item)} — T${s.season}E${ep.episode_num}`, { returnToDetail:true, returnSeason:Number(s.season), returnEpisodeId:episodeId });
+        play('series', item, ep, `${C.itemName(item)} — T${s.season}E${ep.episode_num}`, { returnToDetail:true, returnSeason:Number(s.season), returnEpisodeId:episodeId, seriesSeasons:cur.seasons });
       };
       box.appendChild(b);
     });
@@ -682,6 +684,28 @@
       await saveSettings(); toast(S.settings.hideAdult ? 'Conteúdo adulto oculto' : 'Conteúdo adulto visível');
     };
     b.append(lab);
+    const autoNextLabel = el('label', 'check setting-toggle');
+    const autoNextCheck = el('input'); autoNextCheck.type = 'checkbox'; autoNextCheck.checked = S.settings.autoNext !== false;
+    autoNextLabel.append(autoNextCheck, document.createTextNode(' Avançar automaticamente para o próximo episódio'));
+    autoNextCheck.onchange = async () => {
+      S.settings.autoNext = autoNextCheck.checked;
+      await saveSettings();
+      if (pl) updateNextEpisodePrompt(pl);
+      toast(S.settings.autoNext ? 'Avanço automático ativado' : 'Avanço automático desativado');
+    };
+    b.append(autoNextLabel);
+    const timerRow = el('label', 'setting-row');
+    timerRow.append(el('span', '', 'Contagem final'));
+    const timerSelect = el('select'); timerSelect.id = 'nextCountdownSetting';
+    timerSelect.append(new Option('5 segundos', '5'), new Option('10 segundos', '10'));
+    timerSelect.value = String(S.settings.nextCountdown);
+    timerSelect.onchange = async () => {
+      S.settings.nextCountdown = Number(timerSelect.value) === 5 ? 5 : 10;
+      await saveSettings();
+      if (pl) updateNextEpisodePrompt(pl);
+      toast('Contagem definida para ' + S.settings.nextCountdown + ' segundos');
+    };
+    timerRow.append(timerSelect); b.append(timerRow);
     const act = (txt, fn) => { const x = el('button', 'ghost focusable', txt); x.style.cssText = 'display:block;width:100%;margin:6px 0;text-align:left'; x.onclick = fn; b.append(x); };
     act('Alterar PIN', async () => {
       if (!S.settings.pin) { toast('Ative a opção acima para criar um PIN.'); return; }
@@ -751,6 +775,16 @@
   $('volume').addEventListener('input',()=>{V.volume=Number($('volume').value);V.muted=V.volume===0;updateVolumeUI();bumpUi();});
   $('pFullscreen').addEventListener('click',()=>togglePlayerFullscreen());
   for(const event of ['timeupdate','durationchange','loadedmetadata','progress','seeked'])V.addEventListener(event,refreshTimeline);
+  V.addEventListener('timeupdate', () => updateNextEpisodePrompt(pl));
+  V.addEventListener('durationchange', () => updateNextEpisodePrompt(pl));
+  V.addEventListener('seeked', () => updateNextEpisodePrompt(pl));
+  V.addEventListener('ended', () => {
+    const p = pl; if (!p || p.kind !== 'series' || p.stopped) return;
+    $('ptop').classList.remove('idle'); $('playerControls').classList.remove('idle');
+    if (p.nextDismissed || S.settings.autoNext === false) { updateNextEpisodePrompt(p); return; }
+    if (p.nextEpisodeResolved) { if (p.nextEpisode) advanceToNextEpisode(p); else hideNextEpisodePrompt(); }
+    else resolveNextEpisode(p).then((next) => { if (pl === p && V.ended && !p.nextDismissed && S.settings.autoNext !== false && next) advanceToNextEpisode(p); else if (pl === p) updateNextEpisodePrompt(p); });
+  });
   V.addEventListener('play',updatePlayPauseIcon);V.addEventListener('pause',updatePlayPauseIcon);V.addEventListener('volumechange',updateVolumeUI);updatePlayerUI();
 
   function cleanup(p) {
@@ -833,10 +867,11 @@
     const rkey = C.resumeKey(kind, item, episode);
     const list = opts.list || null;
     const idx = list ? list.findIndex((x) => C.itemId(x) === C.itemId(item)) : -1;
-    const p = (pl = { kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, dash: null, stopped: false, lastPlaybackError: '', returnToDetail:!!opts.returnToDetail, returnSeason:opts.returnSeason||null, returnEpisodeId:opts.returnEpisodeId||'' });
+    const p = (pl = { kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, dash: null, stopped: false, lastPlaybackError: '', returnToDetail:!!opts.returnToDetail, returnSeason:opts.returnSeason||null, returnEpisodeId:opts.returnEpisodeId||'', seriesSeasons:Array.isArray(opts.seriesSeasons)?opts.seriesSeasons:null, nextEpisode:null, nextEpisodeResolved:false, nextEpisodeLoading:false, nextEpisodePromise:null, nextDismissed:false, nextAutoTriggered:false });
     $('player').classList.remove('hidden'); $('ptitle').textContent = title;
     $('pmsg').textContent = 'Carregando…'; $('pback').focus(); updatePlayerFav(); seekDragging=false;$('seek').value='0';$('qualityWrap').classList.add('hidden');$('quality').replaceChildren(new Option('Automática','-1'));updatePlayerUI();$('playerControls').classList.remove('idle');$('ptop').classList.remove('idle');
-    $('pinfo').classList.add('hidden');
+    $('pinfo').classList.add('hidden'); hideNextEpisodePrompt();
+    $('nextPoster').removeAttribute('src'); $('nextPoster').classList.add('hidden');
     togglePlayerFullscreen(true);
     if (!opts.retries) addHistory(kind, item).catch(() => {});
     if (kind === 'live') startEpg(p);
@@ -852,6 +887,110 @@
     $('pmsg').textContent = playbackErrorMessage(p.lastPlaybackError);
     $('ptop').classList.remove('idle');
   }
+
+  function hideNextEpisodePrompt() {
+    const panel = $('nextEpisode');
+    if (panel) { panel.classList.add('hidden'); panel.setAttribute('aria-hidden', 'true'); }
+  }
+
+  function nextCountdownSeconds() {
+    return Number(S.settings.nextCountdown) === 5 ? 5 : 10;
+  }
+
+  function nextNoticeWindow(duration) {
+    if (!Number.isFinite(duration) || duration <= 0) return 0;
+    return Math.min(60, Math.max(nextCountdownSeconds() + 1, duration * 0.2));
+  }
+
+  function resolveNextEpisode(p) {
+    if (!p || p.kind !== 'series' || !p.episode) return Promise.resolve(null);
+    if (p.nextEpisodeResolved) return Promise.resolve(p.nextEpisode);
+    if (p.nextEpisodePromise) return p.nextEpisodePromise;
+    p.nextEpisodeLoading = true;
+    p.nextEpisodePromise = (async () => {
+      try {
+        let seasons = p.seriesSeasons;
+        if (!Array.isArray(seasons) || !seasons.length) {
+          if (cur && cur.kind === 'series' && C.itemId(cur.item) === C.itemId(p.item) && cur.seasons.length) seasons = cur.seasons;
+          else seasons = C.seasonsOf(await fetchDetails('series', p.item));
+          p.seriesSeasons = seasons;
+        }
+        const ordered = [];
+        for (const season of seasons || []) {
+          for (let i = 0; i < (season.episodes || []).length; i++) ordered.push({ season: Number(season.season), episode: season.episodes[i], index: i });
+        }
+        let index = ordered.findIndex((x) => C.itemId(x.episode) === C.itemId(p.episode));
+        if (index < 0) {
+          const match = /T(\d+)E(\d+)/i.exec(p.title || '');
+          const currentSeason = Number(p.returnSeason || (match && match[1]) || 0);
+          const currentNumber = Number((p.episode && (p.episode.episode_num || p.episode.episodeNum)) || (match && match[2]) || 0);
+          index = ordered.findIndex((x) => x.season === currentSeason && Number(x.episode.episode_num || x.episode.episodeNum || 0) === currentNumber);
+        }
+        if (index >= 0 && index + 1 < ordered.length) {
+          const next = ordered[index + 1];
+          const n = Number(next.episode.episode_num || next.episode.episodeNum || next.index + 1);
+          p.nextEpisode = { season: next.season, episode: next.episode, title: `${C.itemName(p.item)} — T${next.season}E${n}`, label: next.episode.title || next.episode.name || ('Episódio ' + n) };
+        }
+      } catch { p.nextEpisode = null; }
+      p.nextEpisodeResolved = true;
+      p.nextEpisodeLoading = false;
+      if (p === pl && !p.stopped) updateNextEpisodePrompt(p);
+      return p.nextEpisode;
+    })().finally(() => { p.nextEpisodeLoading = false; });
+    return p.nextEpisodePromise;
+  }
+
+  function updateNextEpisodePrompt(p = pl) {
+    if (!p || p !== pl || p.stopped || p.kind !== 'series' || !p.episode) { hideNextEpisodePrompt(); return; }
+    const duration = Number(V.duration), current = Number(V.currentTime) || 0;
+    if (!Number.isFinite(duration) || duration <= 0) { hideNextEpisodePrompt(); return; }
+    const remaining = Math.max(0, duration - current);
+    if (remaining > nextNoticeWindow(duration)) { p.nextDismissed = false; hideNextEpisodePrompt(); return; }
+    if (p.nextDismissed) { hideNextEpisodePrompt(); return; }
+    if (!p.nextEpisodeResolved) {
+      hideNextEpisodePrompt();
+      if (!p.nextEpisodeLoading) resolveNextEpisode(p);
+      return;
+    }
+    const next = p.nextEpisode;
+    if (!next) { hideNextEpisodePrompt(); return; }
+    const panel = $('nextEpisode');
+    $('nextSeriesLabel').textContent = C.itemName(p.item);
+    $('nextEpisodeTitle').textContent = next.label;
+    const seconds = nextCountdownSeconds();
+    if (S.settings.autoNext === false) {
+      $('nextCountdown').textContent = V.ended ? 'Este episódio terminou. Você pode abrir o próximo quando quiser.' : 'Próximo episódio disponível ao final deste vídeo.';
+      $('nextCountdownProgress').style.width = '0%';
+    } else if (remaining > seconds) {
+      $('nextCountdown').textContent = 'Próximo episódio em ' + C.fmtTime(Math.ceil(remaining));
+      $('nextCountdownProgress').style.width = '0%';
+    } else {
+      const count = Math.max(0, Math.ceil(remaining));
+      $('nextCountdown').textContent = count > 0 ? 'Avançando automaticamente em ' + count + ' s' : 'Iniciando próximo episódio…';
+      $('nextCountdownProgress').style.width = Math.min(100, Math.max(0, ((seconds - remaining) / seconds) * 100)) + '%';
+    }
+    const info = next.episode.info || {};
+    const posterUrl = C.itemPoster({ movie_image: info.movie_image || next.episode.movie_image || next.episode.cover || next.episode.stream_icon }, S.session && S.session.host);
+    const poster = $('nextPoster');
+    if (posterUrl && poster.src !== posterUrl) { poster.src = posterUrl; poster.classList.remove('hidden'); }
+    else if (!posterUrl) { poster.removeAttribute('src'); poster.classList.add('hidden'); }
+    panel.classList.remove('hidden'); panel.setAttribute('aria-hidden', 'false');
+    if (V.ended && S.settings.autoNext !== false && !p.nextDismissed) advanceToNextEpisode(p);
+  }
+
+  function advanceToNextEpisode(p = pl) {
+    if (!p || p !== pl || p.stopped || p.kind !== 'series' || !p.nextEpisode || p.nextAutoTriggered) return;
+    p.nextAutoTriggered = true;
+    const next = p.nextEpisode, episodeId = C.itemId(next.episode);
+    if (cur && cur.kind === 'series' && C.itemId(cur.item) === C.itemId(p.item)) {
+      cur.selectedSeason = next.season; cur.selectedEpisodeId = episodeId;
+    }
+    hideNextEpisodePrompt();
+    play('series', p.item, next.episode, next.title, { returnToDetail: p.returnToDetail, returnSeason: next.season, returnEpisodeId: episodeId, seriesSeasons: p.seriesSeasons });
+  }
+
+  $('nextPlay').addEventListener('click', () => { if (pl) advanceToNextEpisode(pl); });
+  $('nextDismiss').addEventListener('click', () => { if (pl) pl.nextDismissed = true; hideNextEpisodePrompt(); bumpUi(); });
 
   // Guia (EPG): agora e a seguir
   function startEpg(p) {
@@ -891,7 +1030,7 @@
   function stopPlayback() {
     clearInterval(epgTimer);
     if (!pl) return;
-    saveResume(); pl.stopped = true; cleanup(pl); resetVideo(); pl = null;
+    saveResume(); pl.stopped = true; cleanup(pl); resetVideo(); pl = null; hideNextEpisodePrompt();
   }
   function closePlayer() {
     const returnToDetail = !!(pl && pl.returnToDetail && cur);
