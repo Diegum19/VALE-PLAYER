@@ -49,8 +49,8 @@
     back:'<path d="m15 18-6-6 6-6"/><path d="M9 12h12"/>',
     play:'<path d="m8 5 12 7-12 7z" fill="currentColor" stroke="none"/>',
     pause:'<path d="M8 5h3v14H8zM15 5h3v14h-3z" fill="currentColor" stroke="none"/>',
-    skipBack:'<path d="M8 6a7 7 0 1 1-2.5 5.5"/><path d="M5 3v5h5"/><text x="12.5" y="15.5" fill="currentColor" stroke="none" font-size="6.2" font-weight="850" text-anchor="middle">10</text>',
-    skipForward:'<path d="M16 6a7 7 0 1 0 2.5 5.5"/><path d="M19 3v5h-5"/><text x="11.5" y="15.5" fill="currentColor" stroke="none" font-size="6.2" font-weight="850" text-anchor="middle">10</text>',
+    skipBack:'<path d="M8 6a7 7 0 1 1-2.5 5.5"/><path d="M5 3v5h5"/><text x="12" y="15.5" fill="currentColor" stroke="none" font-size="6.2" font-weight="850" text-anchor="middle">10</text>',
+    skipForward:'<path d="M16 6a7 7 0 1 0 2.5 5.5"/><path d="M19 3v5h-5"/><text x="12" y="15.5" fill="currentColor" stroke="none" font-size="6.2" font-weight="850" text-anchor="middle">10</text>',
     volume:'<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15 9a5 5 0 0 1 0 6M18 6a9 9 0 0 1 0 12"/>',
     volumeMute:'<path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 5 6m0-6-5 6"/>',
     fullscreen:'<path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/>',
@@ -769,10 +769,17 @@
     bumpUi();
   });
   $('seek').addEventListener('input',()=>{seekDragging=true;refreshTimeline();bumpUi();});
-  $('seek').addEventListener('change',()=>{if(pl&&pl.kind!=='live'&&Number.isFinite(V.duration)&&V.duration>0)V.currentTime=(Number($('seek').value)/1000)*V.duration;seekDragging=false;refreshTimeline();bumpUi();});
+  $('seek').addEventListener('change',()=>{if(pl&&pl.kind!=='live'&&Number.isFinite(V.duration)&&V.duration>0){const target=(Number($('seek').value)/1000)*V.duration;try{V.currentTime=Math.min(V.duration,Math.max(0,target));}catch{toast('Não foi possível buscar esta posição no vídeo.');}}seekDragging=false;refreshTimeline();bumpUi();});
   $('playPause').addEventListener('click',()=>{if(V.paused)V.play().catch(()=>{});else V.pause();bumpUi();});
-  $('skipBack').addEventListener('click',()=>{if(pl&&pl.kind!=='live'&&Number.isFinite(V.duration))V.currentTime=Math.max(0,V.currentTime-10);bumpUi();});
-  $('skipForward').addEventListener('click',()=>{if(pl&&pl.kind!=='live'&&Number.isFinite(V.duration))V.currentTime=Math.min(V.duration,V.currentTime+10);bumpUi();});
+  function seekBy(delta) {
+    if (!pl || pl.kind === 'live') return false;
+    const duration = Number(V.duration), current = Number(V.currentTime);
+    if (!Number.isFinite(duration) || duration <= 0 || !Number.isFinite(current)) return false;
+    const target = Math.min(duration, Math.max(0, current + delta));
+    try { V.currentTime = target; return true; } catch { toast('Não foi possível buscar esta posição no vídeo.'); return false; }
+  }
+  $('skipBack').addEventListener('click',()=>{seekBy(-10);bumpUi();});
+  $('skipForward').addEventListener('click',()=>{seekBy(10);bumpUi();});
   $('volume').addEventListener('input',()=>{V.volume=Number($('volume').value);V.muted=V.volume===0;updateVolumeUI();bumpUi();});
   $('pFullscreen').addEventListener('click',()=>togglePlayerFullscreen());
   for(const event of ['timeupdate','durationchange','loadedmetadata','progress','seeked'])V.addEventListener(event,refreshTimeline);
@@ -1116,8 +1123,8 @@
       if(e.target&&e.target.matches&&e.target.matches('input[type=range]')&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key))return;
       bumpUi(); const live = pl && pl.kind === 'live';
       if (e.key === ' ' || e.key === 'k') { e.preventDefault(); V.paused ? V.play() : V.pause(); }
-      else if (e.key === 'ArrowRight' && !live) { e.preventDefault(); V.currentTime += 10; }
-      else if (e.key === 'ArrowLeft' && !live) { e.preventDefault(); V.currentTime -= 10; }
+      else if (e.key === 'ArrowRight' && !live) { e.preventDefault(); seekBy(10); }
+      else if (e.key === 'ArrowLeft' && !live) { e.preventDefault(); seekBy(-10); }
       else if (e.key === 'ArrowUp') { e.preventDefault(); live ? zap(-1) : (V.volume = Math.min(1, V.volume + 0.1)); }
       else if (e.key === 'ArrowDown') { e.preventDefault(); live ? zap(1) : (V.volume = Math.max(0, V.volume - 0.1)); }
       else if (e.key === 'PageUp' || e.key === 'ChannelUp') { e.preventDefault(); zap(-1); }
