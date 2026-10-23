@@ -44,6 +44,7 @@ try:
         pg.keyboard.press('Escape')
         pg.wait_for_selector('#detail:not(.hidden)')
         check(pg.is_hidden('#player') and not pg.is_hidden('#detail'), 'Esc retorna aos detalhes do filme')
+        check('Continuar' in pg.inner_text('#dplay'), 'botão de filme atualiza a retomada ao retornar')
         pg.click('#detailClose')
         pg.click('#nav button[data-tab=home]'); pg.wait_for_selector('#home .card')
         check('Continuar assistindo' in pg.inner_text('#home'), 'início mostra continuar assistindo')
