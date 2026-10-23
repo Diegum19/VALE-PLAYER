@@ -3,7 +3,7 @@
   const C = window.VelaCore;
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-  const APP_VERSION = '0.6.0';
+  const APP_VERSION = '0.8.0';
 
   // ---- Adaptador de plataforma: no PC usa o Electron; em outras plataformas (TV) usa a web ----
   const P = window.vela || {
@@ -25,7 +25,7 @@
 
   const S = {
     profiles: [], session: null, pkey: '', tab: 'home', cats: {}, all: {}, catId: '__all__', items: [], view: [], shown: 0,
-    query: '', sort: '', favs: [], history: [], resume: {}, settings: { hideAdult: false, pin: '', autoNext: true, nextCountdown: 10 }, loadSeq: 0,
+    query: '', sort: '', favs: [], history: [], resume: {}, settings: { hideAdult: false, pin: '', autoNext: true, nextCountdown: 10, nextNoticeSeconds: 30 }, loadSeq: 0,
     posterCache: {}, detailCache: {}, detailPending: {}, posterPending: {}, posterChecked: {}, posterRetryAt: {},
   };
   const PAGE = 120;
@@ -250,6 +250,7 @@
     S.settings = { hideAdult: false, pin: '', autoNext: true, nextCountdown: 10, ...((await P.storeGet('settings')) || {}) };
     S.settings.autoNext = S.settings.autoNext !== false;
     S.settings.nextCountdown = Number(S.settings.nextCountdown) === 5 ? 5 : 10;
+    S.settings.nextNoticeSeconds = 30;
   }
   async function saveLocal(k, val) { const all = (await P.storeGet(k)) || {}; all[S.pkey] = val; await P.storeSet(k, all); }
 
@@ -899,7 +900,7 @@
 
   function nextNoticeWindow(duration) {
     if (!Number.isFinite(duration) || duration <= 0) return 0;
-    if (duration > 60) return 60;
+    if (duration > 30) return 30;
     return Math.min(duration, Math.max(nextCountdownSeconds() + 1, duration * 0.2));
   }
 
