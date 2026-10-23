@@ -621,12 +621,12 @@
     if (cur.kind === 'movie') {
       const r = S.resume[C.resumeKey('movie', cur.item)];
       b.textContent = r ? `▶ Continuar de ${C.fmtTime(r.t)}` : '▶ Assistir';
-      b.onclick = () => { const it = cur.movieExt ? { ...cur.item, container_extension: cur.movieExt } : cur.item; const t = C.itemName(cur.item); closeDetail(); play('movie', it, null, t); };
+      b.onclick = () => { const it = cur.movieExt ? { ...cur.item, container_extension: cur.movieExt } : cur.item; const t = C.itemName(cur.item); $('detail').classList.add('hidden'); play('movie', it, null, t, { returnToDetail:true }); };
     } else {
       const r = lastSeriesResume(cur.item);
       if (!r) { b.classList.add('hidden'); return; }
       b.textContent = `▶ Continuar ${r.title.split('—').pop().trim()} (${C.fmtTime(r.t)})`;
-      b.onclick = () => { const x = r; closeDetail(); play('series', x.item, x.episode, x.title); };
+      b.onclick = () => { const x = r; $('detail').classList.add('hidden'); play('series', x.item, x.episode, x.title, { returnToDetail:true, returnSeason:Number(x.season)||cur.selectedSeason, returnEpisodeId:C.itemId(x.episode) }); };
     }
   }
 
@@ -900,12 +900,14 @@
     stopPlayback(); $('player').classList.add('hidden'); $('pmsg').textContent = ''; togglePlayerFullscreen(false);
     if (returnToDetail && cur) {
       $('detail').classList.remove('hidden');
-      const season = cur.seasons.find((item) => Number(item.season) === Number(returnSeason)) || cur.seasons.find((item) => Number(item.season) === Number(cur.selectedSeason));
-      if (season) showSeason(season, returnEpisodeId || '');
+      if (cur.kind === 'series' && Array.isArray(cur.seasons)) {
+        const season = cur.seasons.find((item) => Number(item.season) === Number(returnSeason)) || cur.seasons.find((item) => Number(item.season) === Number(cur.selectedSeason));
+        if (season) showSeason(season, returnEpisodeId || '');
+      }
       requestAnimationFrame(() => {
         const buttons = [...$('episodes').querySelectorAll('button')];
-        const target = buttons.find((b) => b.dataset.episodeId === returnEpisodeId);
-        const focus = target || $('detailClose');
+        const target = cur.kind === 'series' ? buttons.find((b) => b.dataset.episodeId === returnEpisodeId) : null;
+        const focus = target || $('dplay');
         focus.focus(); focus.scrollIntoView({block:'nearest',inline:'nearest'});
       });
       return;
