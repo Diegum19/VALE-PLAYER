@@ -903,6 +903,8 @@
       if (cur.kind === 'series' && Array.isArray(cur.seasons)) {
         const season = cur.seasons.find((item) => Number(item.season) === Number(returnSeason)) || cur.seasons.find((item) => Number(item.season) === Number(cur.selectedSeason));
         if (season) showSeason(season, returnEpisodeId || '');
+      } else if (cur.kind === 'movie') {
+        setPlayButton();
       }
       requestAnimationFrame(() => {
         const buttons = [...$('episodes').querySelectorAll('button')];
