@@ -1,4 +1,4 @@
-# Vela Player 0.6.0 (PC / Windows 10-11 64 bits)
+# Vela Player 0.8.0 (PC / Windows 10-11 64 bits)
 
 App de PC com **reprodutor embutido**: o cliente baixa **um único arquivo**
 (`Instalar-Vela-Player.exe`), dá dois cliques e abre pelo atalho. Sem CMD, sem ZIP,
@@ -9,7 +9,12 @@ sem VLC, sem Python, sem internet durante a instalação, sem administrador.
 2. Aba **Actions → Gerar instalador Windows → Run workflow**.
 3. Baixe `Instalar-Vela-Player.exe` em *Artifacts* no fluxo concluído.
 
-## Novidades da 0.6.0
+## Novidades da 0.8.0
+- **Controles de reprodução reposicionados:** retroceder à esquerda, play/pausa no centro geométrico e avançar à direita, com ícones de 10 segundos integrados e alinhamento responsivo.
+- **Recuperação de reprodução:** erros nativos e fatais do motor durante um vídeo tentam reconectar a partir do tempo atual, com até duas tentativas para evitar loops infinitos.
+- **Busca mais segura:** os saltos por botão/teclado e o controle de progresso limitam o tempo ao intervalo válido do vídeo e tratam falhas ao alterar a posição.
+- **Aviso compacto de próximo episódio:** aparece 30 segundos antes do fim, com contagem final configurável de 5 ou 10 segundos, botão Assistir agora e Cancelar.
+- **Mais testes de regressão:** 1.000+ ações simuladas, ordem visual dos três botões, falha transitória de rede com recuperação da posição e avanço manual/automático entre temporadas.
 - **Controles centralizados:** play/pausa e saltos de 10 segundos ficam no centro geométrico do player; ícones refeitos sem etiquetas deslocadas.
 - **Próximo episódio:** cartão cinematográfico aparece no último minuto do episódio (proporcionalmente em vídeos curtos), com miniatura e botão para avançar agora ou cancelar.
 - **Avanço automático configurável:** ativado por padrão, com contagem final de 5 ou 10 segundos; o contador acompanha o tempo do vídeo e congela quando ele pausa.
