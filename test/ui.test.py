@@ -97,7 +97,7 @@ try:
         check(True, 'digitar 12 vai para o canal 12')
         pg.keyboard.press('Escape')
         # conteúdo adulto
-        pg.click('#settingsBtn'); pg.click('#modalBody input[type=checkbox]')
+        pg.click('#settingsBtn'); pg.locator('#modalBody input[type=checkbox]').nth(0).click()
         pg.fill('#modalBody input[type=password]', '1234'); pg.keyboard.press('Enter'); pg.wait_for_timeout(300)
         pg.keyboard.press('Escape')
         pg.click('#nav button[data-tab=live]'); pg.wait_for_selector('#grid .card')
