@@ -56,7 +56,8 @@
     fullscreen:'<path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/>',
     sailboat:'<path d="M12 3v14M12 4l7 10h-7M10 9 5 16h5M3 19c2 2 4 2 6 0 2 2 4 2 6 0 2 2 4 2 6 0"/>',
     radio:'<circle cx="12" cy="12" r="2"/><path d="M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14M2 2a14 14 0 0 0 0 20M22 2a14 14 0 0 1 0 20"/>',
-    quality:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'
+    quality:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>'
   };
   function svgIcon(name,size=20){
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
