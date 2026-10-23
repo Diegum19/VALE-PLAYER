@@ -870,7 +870,7 @@
       return;
     }
     const time = Number.isFinite(V.currentTime) ? Math.max(0, V.currentTime) : ((S.resume[p.rkey] || {}).t || 0);
-    const wasPaused = V.paused;
+    const wasPaused = p.runtimeRetries > 0 ? p.pauseAfterRecovery : V.paused;
     p.runtimeRecovering = true; p.lastPlaybackError = reason || 'network';
     $('pmsg').textContent = 'Reconectando o vídeo a partir de ' + C.fmtTime(time) + '…';
     $('ptop').classList.remove('idle'); $('playerControls').classList.remove('idle');
