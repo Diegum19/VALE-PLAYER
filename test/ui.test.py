@@ -43,6 +43,31 @@ try:
         pg.click('#dplay')
         pg.wait_for_function("document.getElementById('video').currentTime>0.5", timeout=15000)
         check(True, 'filme toca no player embutido')
+        # Teste de estresse: 1.000 operações de seek, saltos, setas e pausa/retomada.
+        stress = pg.evaluate("""() => {
+          const v = document.getElementById('video'), seek = document.getElementById('seek');
+          const forward = document.getElementById('skipForward'), back = document.getElementById('skipBack');
+          const toggle = document.getElementById('playPause');
+          let actions = 0;
+          for (let i = 0; i < 100; i++) {
+            const d = Number.isFinite(v.duration) ? v.duration : 30;
+            v.currentTime = Math.max(0, Math.min(d - 1, (i * 7) % Math.max(1, d - 1))); actions++;
+            seek.value = String(Math.round(v.currentTime / d * 1000));
+            seek.dispatchEvent(new Event('input', {bubbles:true})); actions++;
+            seek.dispatchEvent(new Event('change', {bubbles:true})); actions++;
+            forward.click(); actions++; back.click(); actions++;
+            toggle.click(); actions++; toggle.click(); actions++;
+            document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true})); actions++;
+            document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true})); actions++;
+            v.currentTime = Math.max(0, Math.min(d - 0.5, (i * 3) % Math.max(1, d - 0.5))); actions++;
+          }
+          v.play().catch(()=>{});
+          const g = document.querySelector('.player-main-actions').getBoundingClientRect();
+          return {actions, duration:v.duration, currentTime:v.currentTime, centered:Math.abs((g.left+g.right)/2-window.innerWidth/2)<10};
+        }""")
+        check(stress['actions'] >= 900 and stress['duration'] > 0 and stress['currentTime'] >= 0, 'stress de 1.000 ações sem valores inválidos')
+        check(stress['centered'], 'grupo play/pausa e saltos geometricamente centralizado')
+        check(pg.locator('#skipBack small, #skipForward small').count() == 0, 'sem etiquetas numéricas soltas nos botões de salto')
         pg.screenshot(path=os.path.join(here, 'shot-player.png'))
         pg.wait_for_timeout(500); pg.keyboard.press('ArrowRight'); pg.wait_for_timeout(300)
         check(pg.evaluate("document.getElementById('video').currentTime")>10, 'seta direita avança 10 s')
