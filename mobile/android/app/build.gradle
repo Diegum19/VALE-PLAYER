@@ -1,0 +1,18 @@
+plugins { id "com.android.application" }
+android {
+ namespace "br.velaplayer.mobile"
+ compileSdk 36
+ defaultConfig { applicationId "br.velaplayer.mobile"; minSdk 23; targetSdk 35; versionCode 100; versionName "1.0.0" }
+ buildTypes {
+  debug { applicationIdSuffix ".debug"; versionNameSuffix "-teste" }
+  release { minifyEnabled false; proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro" }
+ }
+ compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+ packaging { resources { excludes += ["/META-INF/{AL2.0,LGPL2.1}"] } }
+}
+dependencies {
+ implementation "androidx.media3:media3-exoplayer:1.10.0"
+ implementation "androidx.media3:media3-exoplayer-hls:1.10.0"
+ implementation "androidx.media3:media3-exoplayer-dash:1.10.0"
+ implementation "androidx.media3:media3-ui:1.10.0"
+}
