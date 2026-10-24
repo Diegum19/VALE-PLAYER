@@ -156,7 +156,7 @@ try:
         pg.click('#nav button[data-tab=search]'); pg.fill('#search', 'serie um'); pg.wait_for_selector('#grid .card')
         check(pg.locator('#grid .card').count() == 1, 'busca geral encontra série')
         pg.fill('#search', 'drama'); pg.wait_for_timeout(350)
-        check(pg.locator('#grid .card').count() == 1 and 'Série Um' in pg.inner_text('#grid .card'), 'busca geral encontra conteúdo pelo gênero')
+        check(pg.locator('#grid .card').count() == 2 and 'Série Um' in pg.inner_text('#grid'), 'busca geral encontra séries e filmes pelo gênero')
         pg.fill('#search', '')
         # séries
         pg.click('#nav button[data-tab=series]'); pg.wait_for_selector('#grid .card'); pg.click('#grid .card')
