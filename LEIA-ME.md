@@ -19,7 +19,8 @@ sem VLC, sem Python, sem internet durante a instalação, sem administrador.
 - **Diagnóstico de vídeo detalhado:** estado do player, motor ativo, formato, tempo, buffer, resolução, estado de rede/decodificador, tentativas de recuperação e suporte reportado a codecs — sem host, usuário, senha ou URL.
 - **Reprodução mais resiliente:** busca limitada ao intervalo válido e recuperação limitada de falhas preservando posição/pausa quando possível.
 - **Inicialização de instância única corrigida:** uma segunda instância não tenta abrir outra janela após solicitar a saída.
-- **Testes de lançamento:** filtros, pesquisa por metadados, diagnóstico, limites de seek, stress de 1.000+ ações, retomada, falha transitória e avanço entre episódios.
+- **Continuar assistindo:** botão separado para recomeçar um filme ou o último episódio salvo do início, sem confundir a retomada com a reprodução desde 00:00.
+- **Testes de lançamento:** filtros, pesquisa por metadados, diagnóstico, limites de seek, stress de 1.000+ ações, retomada, recomeço, falha transitória e avanço entre episódios.
 - **Controles de reprodução reposicionados:** retroceder à esquerda, play/pausa no centro geométrico e avançar à direita, com ícones de 10 segundos integrados e alinhamento responsivo.
 - **Recuperação de reprodução:** erros nativos e fatais do motor durante um vídeo tentam reconectar a partir do tempo atual, com até duas tentativas para evitar loops infinitos.
 - **Busca mais segura:** os saltos por botão/teclado e o controle de progresso limitam o tempo ao intervalo válido do vídeo e tratam falhas ao alterar a posição.

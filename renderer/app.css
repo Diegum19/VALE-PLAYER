@@ -394,3 +394,9 @@ header #count{margin-left:auto;white-space:nowrap;font-variant-numeric:tabular-n
 @media(max-width:1100px){header{gap:8px;padding:12px 18px}header input{flex:1 1 200px}header select.catalog-filter,header select#sort{min-width:104px;max-width:150px}}
 @media(max-width:760px){header{align-items:stretch}header input{flex:1 1 100%;max-width:none}header select.catalog-filter,header select#sort{flex:1 1 30%;min-width:0;max-width:none}header #count{margin-left:0;flex:1 1 100%}}
 @media(prefers-reduced-motion:reduce){.card,.home-hero-backdrop,.player-action{transition:none!important}}
+
+/* 1.0.0 details actions: make restart consistent with adjacent primary/favorite controls */
+#drestart{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:44px;padding:10px 14px;border-radius:4px}
+#drestart [data-icon]{display:inline-flex;align-items:center;justify-content:center}
+#drestart:hover{background:#292929;border-color:#555}
+@media(max-width:620px){#drestart{padding:9px 10px;font-size:12px}}
