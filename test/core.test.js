@@ -65,3 +65,23 @@ assert.ok(C.isAdultName('Canais Adultos +18')); assert.ok(C.isAdultName('XXX Mov
 assert.strictEqual(C.fmtTime(75), '1:15'); assert.strictEqual(C.fmtTime(3725), '1:02:05');
 assert.strictEqual(C.resumeKey('series', { series_id: 3 }, { id: '31' }), 'series:3:31');
 console.log('core: novos recursos ok');
+
+const filterSamples = [
+  {name:'Filme de Ação', genre:'Ação, Aventura', releaseDate:'2024-07-18', rating:'7.5', plot:'Uma perseguição em alta velocidade'},
+  {name:'Drama de Inverno', genre:'Drama', releasedate:'2022-01-01', rating:'9.1', description:'Uma história familiar'},
+  {name:'Mistério', genre:'Drama, Suspense', year:'2023', rating:'', plot:'Mistério na cidade'}
+];
+assert.deepStrictEqual(C.itemGenres(filterSamples[0]), ['Ação','Aventura']);
+assert.strictEqual(C.itemYear(filterSamples[0]), '2024');
+assert.strictEqual(C.itemYear({release_date:'2020-03-01'}), '2020');
+assert.strictEqual(C.itemYear({year:'2019'}), '2019');
+assert.strictEqual(C.itemYear({name:'Sem data'}), '');
+assert.deepStrictEqual(C.filterByMetadata(filterSamples,{genre:'ação'}).map(x=>x.name), ['Filme de Ação']);
+assert.deepStrictEqual(C.filterByMetadata(filterSamples,{year:'2022'}).map(x=>x.name), ['Drama de Inverno']);
+assert.deepStrictEqual(C.filterByMetadata(filterSamples,{minRating:8}).map(x=>x.name), ['Drama de Inverno']);
+assert.deepStrictEqual(C.filterByMetadata(filterSamples,{genre:'drama',year:'2023'}).map(x=>x.name), ['Mistério']);
+assert.strictEqual(C.filterItems(filterSamples,'velocidade').length, 1);
+assert.strictEqual(C.filterItems(filterSamples,'aventura').length, 1);
+assert.strictEqual(C.filterItems(filterSamples,'2022').length, 1);
+assert.deepStrictEqual(C.sortItems(filterSamples,'year').map(C.itemName), ['Filme de Ação','Mistério','Drama de Inverno']);
+console.log('core: filtros, pesquisa por metadados e ordenação por ano ok');

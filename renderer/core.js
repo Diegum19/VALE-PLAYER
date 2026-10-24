@@ -132,10 +132,50 @@
   }
 
   function normText(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+  function itemYear(item) {
+    const explicit = String(item && (item.year ?? item.releaseYear) || '').trim();
+    const date = String(item && (item.releaseDate || item.releasedate || item.release_date || item.first_air_date) || '').trim();
+    const match = /(?:19|20)\d{2}/.exec(explicit) || /(?:19|20)\d{2}/.exec(date);
+    return match ? match[0] : '';
+  }
+
+  function itemGenres(item) {
+    if (!item || typeof item !== 'object') return [];
+    const values = [];
+    for (const entry of [item.genre, item.genres, item.genre_name, item.category_name]) {
+      for (const value of (Array.isArray(entry) ? entry : [entry])) {
+        if (!value || typeof value !== 'string') continue;
+        String(value).split(/[,;|\/]/).map((x) => x.trim()).filter(Boolean).forEach((x) => {
+          if (!values.some((g) => normText(g) === normText(x))) values.push(x);
+        });
+      }
+    }
+    return values;
+  }
+
+  function filterByMetadata(items, filters = {}) {
+    const genre = normText(filters.genre || '').trim();
+    const year = String(filters.year || '').trim();
+    const minRating = Math.max(0, Number(filters.minRating) || 0);
+    return (Array.isArray(items) ? items : []).filter((item) => {
+      if (genre && !itemGenres(item).some((g) => normText(g) === genre)) return false;
+      if (year && itemYear(item) !== year) return false;
+      if (minRating > 0 && !(Number(item.rating ?? item.rating_5based ?? item.vote_average) >= minRating)) return false;
+      return true;
+    });
+  }
+
   function filterItems(items, q) {
     const n = normText(q).trim();
     if (!n) return items;
-    return items.filter((i) => normText(itemName(i)).includes(n));
+    return items.filter((i) => {
+      const searchable = [
+        itemName(i), i && i.original_name, i && i.title, i && i.genre, i && i.genres,
+        i && i.genre_name, i && i.category_name, i && i.plot, i && i.overview,
+        i && i.description, i && i.cast, i && i.director, i && i.year, itemYear(i),
+      ].filter(Boolean).join(' ');
+      return normText(searchable).includes(n);
+    });
   }
 
   function profileKey(host, user) { return normalizeHost(host).toLowerCase() + '|' + user; }
@@ -178,7 +218,8 @@
     const a = items.slice();
     if (mode === 'az') a.sort((x, y) => itemName(x).localeCompare(itemName(y), 'pt-BR'));
     else if (mode === 'recent') a.sort((x, y) => (Number(y.added) || 0) - (Number(x.added) || 0));
-    else if (mode === 'rating') a.sort((x, y) => (Number(y.rating) || 0) - (Number(x.rating) || 0));
+    else if (mode === 'rating') a.sort((x, y) => (Number(y.rating ?? y.rating_5based) || 0) - (Number(x.rating ?? x.rating_5based) || 0));
+    else if (mode === 'year') a.sort((x, y) => (Number(itemYear(y)) || 0) - (Number(itemYear(x)) || 0) || itemName(x).localeCompare(itemName(y), 'pt-BR'));
     return a;
   }
   const ADULT_RE = /\badult|\bxxx\b|\+\s?18|18\s?\+|porn|er[oó]tic|\bsexy\b|\bhentai\b/i;
@@ -192,7 +233,7 @@
   function resumeKey(kind, item, ep) { return kind + ':' + itemId(item) + (ep ? ':' + (ep.id ?? ep.stream_id) : ''); }
   function hhmm(sec) { const d = new Date(sec * 1000); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
 
-  const api = { itemPosters, decodeB64, epgList, epgNowNext, sortItems, isAdultName, fmtTime, resumeKey, hhmm, normalizeHost, apiUrl, streamUrls, itemId, itemName, itemPoster, errorMessage, checkLogin, filterItems, profileKey, seasonsOf, isHttpUrl, mediaMode, qualityChoices };
+  const api = { itemPosters, decodeB64, epgList, epgNowNext, sortItems, isAdultName, fmtTime, resumeKey, hhmm, normalizeHost, apiUrl, streamUrls, itemId, itemName, itemPoster, errorMessage, checkLogin, filterItems, filterByMetadata, itemGenres, itemYear, profileKey, seasonsOf, isHttpUrl, mediaMode, qualityChoices };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VelaCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);

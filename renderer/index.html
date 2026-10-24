@@ -48,7 +48,11 @@
   <section id="content">
     <header>
       <input id="search" type="search" placeholder="Pesquisar nesta categoria…" class="focusable">
-      <select id="sort" class="focusable hidden"><option value="">Ordem do servidor</option><option value="az">A–Z</option><option value="recent">Mais recentes</option><option value="rating">Melhor avaliação</option></select>
+      <select id="sort" class="focusable hidden"><option value="">Ordem do servidor</option><option value="az">A–Z</option><option value="recent">Mais recentes</option><option value="rating">Melhor avaliação</option><option value="year">Ano mais recente</option></select>
+      <select id="genreFilter" class="catalog-filter focusable hidden" aria-label="Filtrar por gênero"><option value="">Todos os gêneros</option></select>
+      <select id="yearFilter" class="catalog-filter focusable hidden" aria-label="Filtrar por ano"><option value="">Todos os anos</option></select>
+      <select id="ratingFilter" class="catalog-filter focusable hidden" aria-label="Filtrar por avaliação"><option value="0">Qualquer avaliação</option><option value="6">6+ estrelas</option><option value="7">7+ estrelas</option><option value="8">8+ estrelas</option><option value="9">9+ estrelas</option></select>
+      <button id="clearFilters" class="catalog-clear ghost focusable hidden" type="button">Limpar filtros</button>
       <span id="count" class="muted"></span>
     </header>
     <div class="body">

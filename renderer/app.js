@@ -3,7 +3,7 @@
   const C = window.VelaCore;
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-  const APP_VERSION = '0.8.0';
+  const APP_VERSION = '1.0.0';
 
   // ---- Adaptador de plataforma: no PC usa o Electron; em outras plataformas (TV) usa a web ----
   const P = window.vela || {
@@ -25,7 +25,7 @@
 
   const S = {
     profiles: [], session: null, pkey: '', tab: 'home', cats: {}, all: {}, catId: '__all__', items: [], view: [], shown: 0,
-    query: '', sort: '', favs: [], history: [], resume: {}, settings: { hideAdult: false, pin: '', autoNext: true, nextCountdown: 10, nextNoticeSeconds: 30 }, loadSeq: 0,
+    query: '', sort: '', filters: { genre: '', year: '', minRating: 0 }, favs: [], history: [], resume: {}, settings: { hideAdult: false, pin: '', autoNext: true, nextCountdown: 10, nextNoticeSeconds: 30 }, loadSeq: 0,
     posterCache: {}, detailCache: {}, detailPending: {}, posterPending: {}, posterChecked: {}, posterRetryAt: {},
   };
   const PAGE = 120;
@@ -84,7 +84,14 @@
     const id=C.itemId(item);if(!id||!S.session)return Promise.reject(new Error('Conteúdo sem identificador.'));
     const key=posterKey(kind,item);if(S.detailCache[key])return Promise.resolve(S.detailCache[key]);if(S.detailPending[key])return S.detailPending[key];
     const profileAtStart=S.pkey;const action=kind==='movie'?'get_vod_info':'get_series_info';const params=kind==='movie'?{vod_id:id}:{series_id:id};
-    const request=call(action,params).then(data=>{if(S.pkey===profileAtStart)S.detailCache[key]=data;return data;}).finally(()=>{if(S.detailPending[key]===request)delete S.detailPending[key];});
+    const request=call(action,params).then(data=>{
+      if(S.pkey===profileAtStart){
+        S.detailCache[key]=data;
+        const keys=Object.keys(S.detailCache);
+        while(keys.length>240) delete S.detailCache[keys.shift()];
+      }
+      return data;
+    }).finally(()=>{if(S.detailPending[key]===request)delete S.detailPending[key];});
     S.detailPending[key]=request;return request;
   }
   function extractDetailPosterUrls(kind,item,data){
@@ -95,6 +102,7 @@
   function persistPoster(kind,item,url){
     if(!url||!C.isHttpUrl(url))return;
     const key=posterKey(kind,item);S.posterCache[key]={poster_url:url};item.poster_url=url;
+    const keys=Object.keys(S.posterCache);while(keys.length>1500)delete S.posterCache[keys.shift()];
     document.querySelectorAll('.card[data-poster-key]').forEach(card=>{if(card.dataset.posterKey===key&&typeof card._setPosterUrls==='function')card._setPosterUrls([url]);});
     saveLocal('posterCache',S.posterCache).catch(()=>{});
   }
@@ -124,6 +132,11 @@
   const posterObserver=typeof IntersectionObserver==='function'?new IntersectionObserver(entries=>{
     for(const entry of entries){if(!entry.isIntersecting)continue;posterObserver.unobserve(entry.target);if(typeof entry.target._requestPosterMetadata==='function')entry.target._requestPosterMetadata();}
   },{root:$('gridWrap'),rootMargin:'220px 0px',threshold:0.01}):null;
+  function releasePosterObservers(root) {
+    if (!posterObserver || !root) return;
+    if (root.matches && root.matches('.card')) posterObserver.unobserve(root);
+    root.querySelectorAll && root.querySelectorAll('.card').forEach((card) => posterObserver.unobserve(card));
+  }
 
 
   function toast(msg) {
@@ -282,19 +295,23 @@
   }
 
   async function selectTab(tab) {
-    S.tab = tab; S.catId = '__all__'; S.query = ''; S.sort = ''; $('search').value = ''; $('sort').value = '';
+    S.tab = tab; S.catId = '__all__'; S.query = ''; S.sort = ''; S.filters = { genre: '', year: '', minRating: 0 };
+    $('search').value = ''; $('sort').value = ''; $('genreFilter').value = ''; $('yearFilter').value = ''; $('ratingFilter').value = '0';
     const seq = ++S.loadSeq;
     sidebarTabs.forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
-    $('cats').innerHTML = ''; $('grid').innerHTML = ''; $('count').textContent = ''; setState('');
+    $('cats').innerHTML = ''; releasePosterObservers($('grid')); $('grid').innerHTML = ''; $('count').textContent = ''; setState('');
     $('home').classList.toggle('hidden', tab !== 'home'); $('grid').classList.toggle('hidden', tab === 'home');
     $('cats').classList.toggle('hidden', !['live', 'movie', 'series'].includes(tab));
     $('sort').classList.toggle('hidden', !['movie', 'series'].includes(tab));
+    ['genreFilter','yearFilter','ratingFilter'].forEach((id) => $(id).classList.toggle('hidden', !['movie','series','search'].includes(tab)));
+    $('clearFilters').classList.toggle('hidden', !['movie','series','search'].includes(tab));
     $('search').placeholder = tab === 'search' ? 'Buscar em canais, filmes e séries…' : 'Pesquisar nesta categoria…';
     $('search').parentElement.classList.toggle('hidden', tab === 'home');
     if (tab === 'home') return renderHome();
     if (tab === 'favs' || tab === 'history') {
       const src = tab === 'favs' ? S.favs : S.history;
       S.items = src.map((f) => ({ ...f.item, _kind: f.kind })).filter((i) => !hidden(i._kind, i));
+      updateMetadataFilterOptions();
       return renderGrid(true);
     }
     if (tab === 'search') { S.items = []; setState('Digite para buscar em todo o catálogo.'); $('search').focus(); return; }
@@ -322,9 +339,16 @@
     setState('Carregando…'); $('grid').innerHTML = '';
     const action = { live: 'get_live_streams', movie: 'get_vod_streams', series: 'get_series' }[S.tab];
     try {
-      const list = await call(action, S.catId === '__all__' ? {} : { category_id: S.catId });
+      let list;
+      if (S.catId === '__all__' && Array.isArray(S.all[S.tab])) list = S.all[S.tab];
+      else {
+        list = await call(action, S.catId === '__all__' ? {} : { category_id: S.catId });
+        if (seq !== S.loadSeq) return;
+        if (S.catId === '__all__') S.all[S.tab] = Array.isArray(list) ? list : [];
+      }
       if (seq !== S.loadSeq) return;
       S.items = (Array.isArray(list) ? list : []).filter((i) => !hidden(S.tab, i));
+      updateMetadataFilterOptions();
       renderGrid(true);
     } catch (e) { if (seq === S.loadSeq) setState(e.message); }
   }
@@ -332,21 +356,44 @@
   const setState = (m) => { $('state').textContent = m || ''; };
   const kindOf = (item) => item._kind || S.tab;
 
+  function updateMetadataFilterOptions() {
+    const enabled = ['movie','series','search'].includes(S.tab);
+    const genreSelect = $('genreFilter'), yearSelect = $('yearFilter'), ratingSelect = $('ratingFilter');
+    [genreSelect,yearSelect,ratingSelect].forEach((x) => x.classList.toggle('hidden', !enabled));
+    $('clearFilters').classList.toggle('hidden', !enabled || !(S.filters.genre || S.filters.year || S.filters.minRating));
+    if (!enabled) return;
+    const source = S.items.filter((item) => S.tab !== 'search' || kindOf(item) !== 'live');
+    const genres = [...new Set(source.flatMap((item) => C.itemGenres(item)))].sort((x,y) => x.localeCompare(y,'pt-BR'));
+    const years = [...new Set(source.map((item) => C.itemYear(item)).filter(Boolean))].sort((x,y) => Number(y)-Number(x));
+    const fill = (select, firstLabel, values, selected) => {
+      if (selected && !values.some((x) => String(x) === String(selected))) selected = '';
+      select.replaceChildren(new Option(firstLabel,''));
+      values.forEach((value) => select.appendChild(new Option(String(value),String(value))));
+      select.value = selected || '';
+      return selected || '';
+    };
+    S.filters.genre = fill(genreSelect,'Todos os gêneros',genres,S.filters.genre);
+    S.filters.year = fill(yearSelect,'Todos os anos',years,S.filters.year);
+    ratingSelect.value = String(S.filters.minRating || 0);
+    $('clearFilters').classList.toggle('hidden', !(S.filters.genre || S.filters.year || S.filters.minRating));
+  }
+
   function computeView() {
-    let v = S.tab === 'search' ? S.items : C.filterItems(S.items, S.query);
+    let v = C.filterItems(S.items, S.query);
+    if (['movie','series','search'].includes(S.tab)) v = C.filterByMetadata(v, S.filters);
     if (S.sort && (S.tab === 'movie' || S.tab === 'series')) v = C.sortItems(v, S.sort);
     S.view = v;
   }
 
   function renderGrid(reset) {
-    if (reset) { computeView(); $('grid').innerHTML = ''; S.shown = 0; $('gridWrap').scrollTop = 0; }
+    if (reset) { releasePosterObservers($('grid')); computeView(); $('grid').innerHTML = ''; S.shown = 0; $('gridWrap').scrollTop = 0; }
     const list = S.view, end = Math.min(list.length, S.shown + PAGE);
     const frag = document.createDocumentFragment();
     for (let i = S.shown; i < end; i++) frag.appendChild(makeCard(list[i], i));
     $('grid').appendChild(frag); S.shown = end;
     $('count').textContent = `${list.length} ${LABEL[S.tab] || ''}`;
     if (S.tab === 'search' && !S.query.trim()) return;
-    setState(list.length === 0 ? (S.tab === 'favs' ? 'Nenhum favorito ainda.' : S.tab === 'history' ? 'Nada assistido ainda.' : 'Nada encontrado.') : (end < list.length ? 'Role para carregar mais…' : ''));
+    setState(list.length === 0 ? (S.filters.genre || S.filters.year || S.filters.minRating ? 'Nenhum resultado com estes filtros. Tente remover um filtro.' : S.tab === 'favs' ? 'Nenhum favorito ainda.' : S.tab === 'history' ? 'Nada assistido ainda.' : 'Nada encontrado.') : (end < list.length ? 'Role para carregar mais…' : ''));
   }
 
   function makeCard(item, idx, resumeEntry) {
@@ -393,6 +440,18 @@
     st = setTimeout(() => { S.query = e.target.value; if (S.tab === 'search') runGlobalSearch(); else renderGrid(true); }, 250);
   });
   $('sort').addEventListener('change', (e) => { S.sort = e.target.value; renderGrid(true); });
+  function applyMetadataFilters() {
+    S.filters.genre = $('genreFilter').value;
+    S.filters.year = $('yearFilter').value;
+    S.filters.minRating = Number($('ratingFilter').value) || 0;
+    updateMetadataFilterOptions(); renderGrid(true);
+  }
+  ['genreFilter','yearFilter','ratingFilter'].forEach((id) => $(id).addEventListener('change', applyMetadataFilters));
+  $('clearFilters').addEventListener('click', () => {
+    S.filters = { genre:'', year:'', minRating:0 };
+    $('genreFilter').value = ''; $('yearFilter').value = ''; $('ratingFilter').value = '0';
+    updateMetadataFilterOptions(); renderGrid(true);
+  });
   sidebarTabs.forEach((b) => (b.onclick = () => selectTab(b.dataset.tab)));
   $('logout').onclick = async () => { await P.storeSet('lastProfile', null); showLogin(); };
 
@@ -412,12 +471,13 @@
         if (out.length >= 400) break;
       }
     }
-    S.items = out; renderGrid(true);
+    S.items = out; updateMetadataFilterOptions(); renderGrid(true);
   }
 
   // ---- Início em trilhos, com destaque cinematográfico ----
   function renderHome() {
     const home = $('home');
+    releasePosterObservers(home);
     home.innerHTML = '';
 
     const cont = Object.values(S.resume).filter((r) => r && r.item && r.d && !hidden(r.kind, r.item)).sort((a, b) => b.at - a.at).slice(0, 20);
@@ -535,8 +595,16 @@
   }
   // guarda só o essencial (mantém o arquivo local pequeno)
   function cleanItem(it) {
-    const keep = ['stream_id', 'series_id', 'id', 'name', 'title', 'stream_icon', 'cover', 'cover_big', 'cover_url', 'movie_image', 'movie_cover', 'poster', 'poster_url', 'backdrop_path', 'backdrop', 'image', 'image_url', 'thumbnail', 'category_id', 'container_extension', 'direct_source', 'rating', 'plot', 'genre', 'releaseDate', 'added'];
-    const o = {}; for (const k of keep) if (it[k] !== undefined) o[k] = it[k]; return o;
+    const keep = ['stream_id','series_id','id','name','title','stream_icon','cover','cover_big','cover_url','movie_image','movie_cover','poster','poster_url','backdrop_path','backdrop','image','image_url','thumbnail','category_id','category_name','container_extension','direct_source','rating','rating_5based','plot','overview','description','cast','director','genre','genre_name','releaseDate','releasedate','release_date','first_air_date','year','added','tmdb_id'];
+    const out = {};
+    for (const key of keep) {
+      const value = it && it[key];
+      if (value === undefined || value === null) continue;
+      if (typeof value === 'string') out[key] = value.slice(0, ['plot','overview','description','cast'].includes(key) ? 1200 : 500);
+      else if (typeof value === 'number' || typeof value === 'boolean') out[key] = value;
+      else if (Array.isArray(value)) out[key] = value.slice(0,20).filter((x) => typeof x === 'string' || typeof x === 'number').map((x) => typeof x === 'string' ? x.slice(0,200) : x);
+    }
+    return out;
   }
   async function addHistory(kind, item) {
     S.history = S.history.filter((h) => !(h.kind === kind && C.itemId(h.item) === C.itemId(item)));
@@ -682,7 +750,7 @@
         if (!(await checkPin('Digite o PIN para exibir conteúdo adulto.'))) { return; }
         S.settings.hideAdult = false; cb.checked = false;
       }
-      await saveSettings(); toast(S.settings.hideAdult ? 'Conteúdo adulto oculto' : 'Conteúdo adulto visível');
+      await saveSettings(); await selectTab(S.tab); toast(S.settings.hideAdult ? 'Conteúdo adulto oculto' : 'Conteúdo adulto visível');
     };
     b.append(lab);
     const autoNextLabel = el('label', 'check setting-toggle');
@@ -714,28 +782,83 @@
       const p = await askText('Novo PIN', '4 dígitos.', 'password'); if (!p || !/^\d{4}$/.test(p)) { toast('O PIN precisa ter 4 dígitos.'); return; }
       S.settings.pin = await hashPin(p); await saveSettings(); toast('PIN alterado');
     });
-    act('Limpar histórico', async () => { if (await confirmDlg('Limpar histórico', 'Apagar os itens assistidos recentemente?', 'Limpar')) { S.history = []; await saveLocal('history', []); toast('Histórico limpo'); } });
-    act('Limpar "continuar assistindo"', async () => { if (await confirmDlg('Limpar', 'Apagar os pontos de retomada dos filmes e séries?', 'Limpar')) { S.resume = {}; await saveLocal('resume', {}); toast('Pontos de retomada apagados'); } });
-    const videoDiagnostics=el('div','video-diagnostics hidden');
-    act('Diagnóstico de vídeo', () => {
-      if(!videoDiagnostics.childElementCount){
-        const features=window.mpegts&&typeof window.mpegts.getFeatureList==='function'?window.mpegts.getFeatureList():{};
-        const browser=/Chrome|Chromium/.test(navigator.userAgent)?'Chromium integrado':'navegador não identificado';
-        const checks=[
-          ['MP4 · H.264/AAC',V.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"')],
-          ['MP4 · HEVC/H.265',V.canPlayType('video/mp4; codecs="hvc1.1.6.L93.B0"')],
-          ['MP4 · AV1',V.canPlayType('video/mp4; codecs="av01.0.08M.08"')],
-          ['WebM · VP9',V.canPlayType('video/webm; codecs="vp09.00.10.08"')],
-          ['MPEG-TS ao vivo',features.mseLivePlayback?'Disponível':'Não disponível'],
-          ['HEVC em MPEG-TS',features.mseH265Playback?'Disponível':'Não disponível'],
-        ];
-        videoDiagnostics.append(el('p','muted','Motor de vídeo: '+browser));
-        videoDiagnostics.append(el('p','muted','A compatibilidade reportada não garante a reprodução de todos os arquivos.'));
-        for(const [name,value] of checks)videoDiagnostics.append(el('p','diagnostic-row',name+': '+(value||'Não reportado')));
+    act('Limpar histórico', async () => {
+      if (await confirmDlg('Limpar histórico', 'Apagar os itens assistidos recentemente?', 'Limpar')) {
+        S.history = []; await saveLocal('history', []);
+        if (S.tab === 'history') await selectTab('history');
+        if (S.tab === 'home') renderHome();
+        toast('Histórico limpo');
       }
+    });
+    act('Limpar minha lista', async () => {
+      if (await confirmDlg('Limpar minha lista', 'Remover todos os favoritos deste perfil?', 'Limpar')) {
+        S.favs = []; await saveLocal('favs', []);
+        if (S.tab === 'favs') await selectTab('favs');
+        if (S.tab === 'home') renderHome();
+        updatePlayerFav(); updateFavBtn(); toast('Minha lista limpa');
+      }
+    });
+    act('Limpar "continuar assistindo"', async () => {
+      if (await confirmDlg('Limpar', 'Apagar os pontos de retomada dos filmes e séries?', 'Limpar')) {
+        if (pl) { stopPlayback(); $('player').classList.add('hidden'); togglePlayerFullscreen(false); }
+        S.resume = {}; await saveLocal('resume', {});
+        if (S.tab === 'home') renderHome();
+        if (cur) setPlayButton();
+        toast('Pontos de retomada apagados');
+      }
+    });
+    const videoDiagnostics=el('div','video-diagnostics hidden');
+    let diagnosticReport = '';
+    const refreshDiagnostics = () => {
+      videoDiagnostics.replaceChildren();
+      const features=window.mpegts&&typeof window.mpegts.getFeatureList==='function'?window.mpegts.getFeatureList():{};
+      const p=pl;
+      const seconds=Number.isFinite(V.currentTime)?C.fmtTime(V.currentTime):'—';
+      const duration=Number.isFinite(V.duration)?C.fmtTime(V.duration):'—';
+      let bufferedAhead=0;
+      try { for(let i=0;i<V.buffered.length;i++){const start=V.buffered.start(i),end=V.buffered.end(i);if(start<=V.currentTime&&end>=V.currentTime){bufferedAhead=Math.max(0,end-V.currentTime);break;}} } catch {}
+      const engine=!p?'Nenhum':p.hls?'HLS.js':p.dash?'dash.js':p.ts?'mpegts.js':'HTMLMediaElement / Chromium';
+      const networkLabels=['Sem fonte','Carregando','Carregado'];
+      const readyLabels=['Sem dados','Metadados','Pronto para exibir quadro','Pronto para iniciar','Pronto para reprodução'];
+      const checks=[
+        ['Versão',APP_VERSION],['Plataforma',P.platform || 'desktop'],['Motor atual',engine],
+        ['Estado',!p?'Sem reprodução':V.error?'Erro':V.paused?'Pausado':p.started?'Reproduzindo':'Carregando'],
+        ['Conteúdo',p?C.itemName(p.item)+' · '+p.kind:'—'],
+        ['Formato detectado',p&&p.currentUrl?modeFor(p.kind,p.currentUrl):'—'],
+        ['Resolução',V.videoWidth&&V.videoHeight?V.videoWidth+' × '+V.videoHeight:'Aguardando vídeo'],
+        ['Tempo',seconds+' / '+duration],['Buffer futuro',bufferedAhead.toFixed(1)+' s'],
+        ['Estado da rede',networkLabels[V.networkState]||String(V.networkState)],
+        ['Estado do decodificador',readyLabels[V.readyState]||String(V.readyState)],
+        ['Recuperações tentadas',p?String(p.runtimeRetries||0):'0'],['Último erro',p&&p.lastPlaybackError||'Nenhum'],
+        ['MP4 · H.264/AAC',V.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"')||'Não reportado'],
+        ['MP4 · HEVC/H.265',V.canPlayType('video/mp4; codecs="hvc1.1.6.L93.B0"')||'Não reportado'],
+        ['MP4 · AV1',V.canPlayType('video/mp4; codecs="av01.0.08M.08"')||'Não reportado'],
+        ['WebM · VP9',V.canPlayType('video/webm; codecs="vp09.00.10.08"')||'Não reportado'],
+        ['HLS/MSE',window.Hls&&window.Hls.isSupported()?'Disponível':'Não disponível'],
+        ['DASH',window.dashjs&&window.dashjs.MediaPlayer?'Biblioteca disponível':'Não disponível'],
+        ['MPEG-TS ao vivo',features.mseLivePlayback?'Disponível':'Não disponível'],
+        ['HEVC em MPEG-TS',features.mseH265Playback?'Disponível':'Não disponível'],
+        ['Erro nativo',V.error?'Código '+V.error.code:'Nenhum']
+      ];
+      videoDiagnostics.append(el('p','muted','Diagnóstico técnico (não inclui host, usuário, senha ou URL de transmissão).'));
+      for(const [name,value] of checks) videoDiagnostics.append(el('p','diagnostic-row',name+': '+value));
+      diagnosticReport=checks.map(([name,value])=>name+': '+value).join('\\n');
+      const copy=el('button','ghost focusable','Copiar relatório');copy.type='button';
+      copy.onclick=async()=>{
+        try {
+          if(navigator.clipboard&&navigator.clipboard.writeText) await navigator.clipboard.writeText(diagnosticReport);
+          else { const area=el('textarea');area.value=diagnosticReport;document.body.append(area);area.select();if(!document.execCommand('copy'))throw new Error('copy');area.remove(); }
+          toast('Diagnóstico copiado sem credenciais');
+        } catch { toast('Não foi possível copiar automaticamente. Selecione o relatório para copiar.'); }
+      };
+      videoDiagnostics.append(copy);
+    };
+    act('Diagnóstico de vídeo', () => {
+      const wasHidden=videoDiagnostics.classList.contains('hidden');
+      if(wasHidden)refreshDiagnostics();
       videoDiagnostics.classList.toggle('hidden');
     });
-    b.append(videoDiagnostics);
+
     b.append(el('p', 'muted', `Vela Player ${APP_VERSION} · HLS.js, dash.js e mpegts.js. O Vela Player não fornece canais nem conteúdo.`));
     const row = el('div', 'row'); const close = el('button', 'primary focusable', 'Fechar'); close.onclick = () => { done(null); if (S.tab === 'home') renderHome(); else if (S.tab === 'live' || S.tab === 'movie' || S.tab === 'series') selectTab(S.tab); }; row.append(close); b.append(row);
   });
@@ -904,6 +1027,7 @@
     const startAt = kind === 'live' ? 0 : (Number.isFinite(Number(opts.startAt)) ? Math.max(0, Number(opts.startAt)) : ((S.resume[rkey] || {}).t || 0));
     for (const url of urls) {
       if (p.stopped) return;
+      p.currentUrl = url;
       cleanup(p); resetVideo();
       try { await attempt(p, modeFor(kind, url), url, startAt); if (!p.stopped) { p.started = true; $('pmsg').textContent = ''; if (p.pauseAfterRecovery) V.pause(); bumpUi(); } return; }
       catch (e) { /* tenta a próxima URL disponível */ }
