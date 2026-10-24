@@ -687,17 +687,31 @@
   const lastSeriesResume = (item) => Object.values(S.resume).filter((r) => r.kind === 'series' && C.itemId(r.item) === C.itemId(item)).sort((a, b) => b.at - a.at)[0];
 
   function setPlayButton() {
-    const b = $('dplay'); b.classList.remove('hidden');
+    const b = $('dplay'), restart = $('drestart');
+    b.classList.remove('hidden'); restart.classList.add('hidden'); restart.onclick = null;
     if (!cur) return;
     if (cur.kind === 'movie') {
       const r = S.resume[C.resumeKey('movie', cur.item)];
       b.textContent = r ? `▶ Continuar de ${C.fmtTime(r.t)}` : '▶ Assistir';
       b.onclick = () => { const it = cur.movieExt ? { ...cur.item, container_extension: cur.movieExt } : cur.item; const t = C.itemName(cur.item); $('detail').classList.add('hidden'); play('movie', it, null, t, { returnToDetail:true }); };
+      if (r) {
+        restart.classList.remove('hidden');
+        restart.onclick = () => {
+          const it = cur.movieExt ? { ...cur.item, container_extension: cur.movieExt } : cur.item;
+          const t = C.itemName(cur.item); $('detail').classList.add('hidden');
+          play('movie', it, null, t, { returnToDetail:true, startAt:0 });
+        };
+      }
     } else {
       const r = lastSeriesResume(cur.item);
       if (!r) { b.classList.add('hidden'); return; }
       b.textContent = `▶ Continuar ${r.title.split('—').pop().trim()} (${C.fmtTime(r.t)})`;
       b.onclick = () => { const x = r; $('detail').classList.add('hidden'); play('series', x.item, x.episode, x.title, { returnToDetail:true, returnSeason:Number(x.season)||cur.selectedSeason, returnEpisodeId:C.itemId(x.episode), seriesSeasons:cur.seasons }); };
+      restart.classList.remove('hidden');
+      restart.onclick = () => {
+        const x = r; $('detail').classList.add('hidden');
+        play('series', x.item, x.episode, x.title, { returnToDetail:true, returnSeason:Number(x.season)||cur.selectedSeason, returnEpisodeId:C.itemId(x.episode), seriesSeasons:cur.seasons, startAt:0 });
+      };
     }
   }
 
@@ -1196,6 +1210,7 @@
       if (cur.kind === 'series' && Array.isArray(cur.seasons)) {
         const season = cur.seasons.find((item) => Number(item.season) === Number(returnSeason)) || cur.seasons.find((item) => Number(item.season) === Number(cur.selectedSeason));
         if (season) showSeason(season, returnEpisodeId || '');
+        setPlayButton();
       } else if (cur.kind === 'movie') {
         setPlayButton();
       }
