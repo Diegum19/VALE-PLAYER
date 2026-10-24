@@ -4,6 +4,26 @@ App de PC com **reprodutor embutido**: o cliente baixa **um único arquivo**
 (`Instalar-Vela-Player.exe`), dá dois cliques e abre pelo atalho. Sem CMD, sem ZIP,
 sem VLC, sem Python, sem internet durante a instalação, sem administrador.
 
+## Requisitos práticos do PC
+
+Estes são alvos estimados para este aplicativo, não uma tabela oficial de requisitos do Electron.
+
+**Mínimo para abrir e navegar no catálogo**
+- Windows 10 64 bits ou Windows 11 64 bits; build do aplicativo para x64.
+- Processador moderno de 2 núcleos, 4 GB de RAM e cerca de 1 GB de espaço livre.
+- GPU/driver compatível com a aceleração gráfica do Windows; conexão estável ao servidor IPTV.
+- Vídeo: comece com H.264/AAC em 720p. Em PCs modestos, muitos programas abertos ou catálogos grandes podem causar lentidão com apenas 4 GB de RAM.
+
+**Recomendado para uso mais fluido**
+- Windows 11 64 bits (ou Windows com suporte de segurança vigente).
+- Intel Core i5 de 8ª geração ou equivalente moderno AMD Ryzen 5, 8 GB de RAM e SSD; 16 GB são bons para multitarefa e listas grandes.
+- Gráficos integrados modernos ou placa dedicada com driver atualizado e decodificação por hardware de H.264; para HEVC/H.265, AV1, HDR ou 4K, o suporte do decodificador importa mais do que só a quantidade de memória da placa.
+- Como referência de rede, cerca de 10–15 Mbps estáveis para um fluxo HD e 25 Mbps ou mais para 4K; o bitrate real do servidor pode exigir mais.
+
+**O que mais influencia travamentos:** codec de vídeo/áudio, aceleração de hardware disponível no Electron/Chromium, driver de vídeo, bitrate e estabilidade do servidor. A extensão de arquivo sozinha não garante compatibilidade nem suavidade; veja Configurações → Diagnóstico de vídeo em caso de falha. O aplicativo não converte codecs incompatíveis.
+
+O build usa Electron 45, cujo suporte oficial é Windows 10 ou posterior, em arquitetura x64 nesta distribuição ([plataformas do Electron](https://github.com/electron/electron#platform-support)). Atenção: o suporte padrão do Windows 10 Home/Pro terminou em 14 de outubro de 2025; para segurança, prefira um sistema que ainda receba atualizações ([Microsoft Lifecycle](https://learn.microsoft.com/pt-br/lifecycle/announcements/windows-10-end-of-support)).
+
 ## Como gerar o instalador (uma vez, sem instalar nada no seu PC)
 1. Crie um repositório **privado** no GitHub e envie esta pasta inteira.
 2. Aba **Actions → Gerar instalador Windows → Run workflow**.

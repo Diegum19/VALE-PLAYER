@@ -22,6 +22,13 @@ try:
         pg.fill('#pass', 'segredo'); pg.click('#loginBtn')
         pg.wait_for_selector('#home')
         check('Sua próxima história começa aqui' in pg.inner_text('#home'), 'início usa destaque cinematográfico quando ainda não há histórico')
+        hero = pg.evaluate("""() => {
+          const h = document.querySelector('#home .home-hero');
+          const p = document.querySelector('#home');
+          const r = h.getBoundingClientRect();
+          return { maxWidth: getComputedStyle(h).maxWidth, width: r.width, parentWidth: p.clientWidth };
+        }""")
+        check(hero['maxWidth'] == 'none' and hero['width'] >= hero['parentWidth'] - 2, 'destaque do PC ocupa toda a largura, sem corte de 800px')
         check(pg.locator('.home-shortcut').count() == 4, 'atalhos de navegação rápida renderizados')
         pg.click('#settingsBtn')
         check(pg.locator('#nextCountdownSetting').input_value() == '10', 'contagem automática padrão de 10 segundos')

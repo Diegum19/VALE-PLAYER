@@ -400,3 +400,8 @@ header #count{margin-left:auto;white-space:nowrap;font-variant-numeric:tabular-n
 #drestart [data-icon]{display:inline-flex;align-items:center;justify-content:center}
 #drestart:hover{background:#292929;border-color:#555}
 @media(max-width:620px){#drestart{padding:9px 10px;font-size:12px}}
+
+/* Vela Player 1.0.0 final polish: remove the obsolete 800px cap from the PC hero. */
+#home .home-hero{width:auto;max-width:none;margin-left:calc(-1 * clamp(22px,3.1vw,52px));margin-right:calc(-1 * clamp(22px,3.1vw,52px))}
+@media(max-width:900px){#home .home-hero{margin-left:-22px;margin-right:-22px}}
+@media(max-width:680px){#home .home-hero{margin-left:-14px;margin-right:-14px}}
