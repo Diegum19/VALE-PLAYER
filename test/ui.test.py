@@ -109,6 +109,9 @@ try:
         check(pg.locator('.player-main-actions').locator('button').nth(2).get_attribute('id') == 'skipForward', 'avançar fica à direita')
         pg.wait_for_timeout(500); pg.keyboard.press('ArrowRight'); pg.wait_for_timeout(300)
         check(pg.evaluate("document.getElementById('video').currentTime")>10, 'seta direita avança 10 s')
+        # Deixa o filme num ponto intermediário: conteúdo concluído não deve ficar em Continuar assistindo.
+        pg.evaluate("document.getElementById('video').currentTime = 15")
+        pg.wait_for_function("Math.abs(document.getElementById('video').currentTime - 15) < 1")
         pg.keyboard.press('Escape')
         pg.wait_for_selector('#detail:not(.hidden)')
         check(pg.is_hidden('#player') and not pg.is_hidden('#detail'), 'Esc retorna aos detalhes do filme')
