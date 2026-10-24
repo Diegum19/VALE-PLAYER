@@ -1,4 +1,4 @@
-# Vela Player 0.8.0 (PC / Windows 10-11 64 bits)
+# Vela Player 1.0.0 (PC / Windows 10-11 64 bits)
 
 App de PC com **reprodutor embutido**: o cliente baixa **um único arquivo**
 (`Instalar-Vela-Player.exe`), dá dois cliques e abre pelo atalho. Sem CMD, sem ZIP,
@@ -9,7 +9,17 @@ sem VLC, sem Python, sem internet durante a instalação, sem administrador.
 2. Aba **Actions → Gerar instalador Windows → Run workflow**.
 3. Baixe `Instalar-Vela-Player.exe` em *Artifacts* no fluxo concluído.
 
-## Novidades da 0.8.0
+## Novidades da 1.0.0
+- **Versão 1.0.0:** primeira versão de lançamento consolidada, com a linha visual cinematográfica e controles centralizados.
+- **Busca ampliada:** além de títulos, a pesquisa considera gênero, ano, sinopse, descrição, elenco e direção quando disponíveis.
+- **Filtros de catálogo:** gênero, ano e avaliação em filmes/séries, com limpeza rápida e ordenação por ano.
+- **Catálogo em cache:** voltar para “Todas” reutiliza a lista completa da sessão em vez de solicitar os mesmos dados novamente.
+- **Memória mais previsível:** cache de detalhes limitado a 240 entradas, cache de pôsteres a 1.500 entradas e liberação de observadores de imagem em grades descartadas.
+- **Biblioteca consistente:** limpar histórico/favoritos atualiza as telas; limpar retomadas interrompe a sessão atual para não recriar pontos apagados.
+- **Diagnóstico de vídeo detalhado:** estado do player, motor ativo, formato, tempo, buffer, resolução, estado de rede/decodificador, tentativas de recuperação e suporte reportado a codecs — sem host, usuário, senha ou URL.
+- **Reprodução mais resiliente:** busca limitada ao intervalo válido e recuperação limitada de falhas preservando posição/pausa quando possível.
+- **Inicialização de instância única corrigida:** uma segunda instância não tenta abrir outra janela após solicitar a saída.
+- **Testes de lançamento:** filtros, pesquisa por metadados, diagnóstico, limites de seek, stress de 1.000+ ações, retomada, falha transitória e avanço entre episódios.
 - **Controles de reprodução reposicionados:** retroceder à esquerda, play/pausa no centro geométrico e avançar à direita, com ícones de 10 segundos integrados e alinhamento responsivo.
 - **Recuperação de reprodução:** erros nativos e fatais do motor durante um vídeo tentam reconectar a partir do tempo atual, com até duas tentativas para evitar loops infinitos.
 - **Busca mais segura:** os saltos por botão/teclado e o controle de progresso limitam o tempo ao intervalo válido do vídeo e tratam falhas ao alterar a posição.

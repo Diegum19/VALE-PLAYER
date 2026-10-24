@@ -5,7 +5,8 @@ const fs = require('fs');
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
-if (!app.requestSingleInstanceLock()) { app.quit(); }
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) app.quit();
 
 let win = null;
 const dataFile = () => path.join(app.getPath('userData'), 'vela-data.json');
@@ -44,15 +45,19 @@ function createWindow() {
     },
   });
   Menu.setApplicationMenu(null);
-  win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  const entryFile = path.join(__dirname, 'renderer', 'index.html');
+  win.loadFile(entryFile);
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('file:')) e.preventDefault(); });
+  const { pathToFileURL } = require('url');
+  const allowedEntryUrl = pathToFileURL(entryFile).href;
+  win.webContents.on('will-navigate', (e, url) => { if (url.split('#')[0] !== allowedEntryUrl) e.preventDefault(); });
   win.on('closed', () => { win = null; });
 }
 
-app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
+if (hasSingleInstanceLock) app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 
 app.whenReady().then(() => {
+  if (!hasSingleInstanceLock) return;
   // Servidores de mídia normalmente não enviam cabeçalhos CORS; o app é um player local,
   // então libera o acesso do reprodutor embutido às respostas dos servidores.
   session.defaultSession.webRequest.onHeadersReceived((details, cb) => {

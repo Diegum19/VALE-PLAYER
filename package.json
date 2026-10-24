@@ -1,8 +1,8 @@
 {
   "name": "vela-player",
   "productName": "Vela Player",
-  "version": "0.8.0",
-  "description": "Vela Player - controles centralizados, recuperação de reprodução e avanço automático de episódios",
+  "version": "1.0.0",
+  "description": "Vela Player 1.0.0 - experiência de streaming, filtros de catálogo e reprodução resiliente",
   "main": "main.js",
   "author": "Vela Player",
   "license": "UNLICENSED",
