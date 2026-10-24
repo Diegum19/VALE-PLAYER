@@ -858,6 +858,7 @@
       if(wasHidden)refreshDiagnostics();
       videoDiagnostics.classList.toggle('hidden');
     });
+    b.append(videoDiagnostics);
 
     b.append(el('p', 'muted', `Vela Player ${APP_VERSION} · HLS.js, dash.js e mpegts.js. O Vela Player não fornece canais nem conteúdo.`));
     const row = el('div', 'row'); const close = el('button', 'primary focusable', 'Fechar'); close.onclick = () => { done(null); if (S.tab === 'home') renderHome(); else if (S.tab === 'live' || S.tab === 'movie' || S.tab === 'series') selectTab(S.tab); }; row.append(close); b.append(row);
