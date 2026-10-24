@@ -164,8 +164,8 @@ try:
         check(pg.locator('#seasons button').count() == 2 and pg.locator('#episodes button').count() == 2, 'série: 2 temporadas, T1 com 2 episódios')
         pg.screenshot(path=os.path.join(here, 'shot-series.png'))
         pg.click('#dfav'); pg.click('#episodes button >> nth=0')
-        pg.wait_for_function("document.getElementById('video').currentTime>0.3", timeout=15000)
-        check(True, 'episódio toca')
+        pg.wait_for_function("document.getElementById('ptitle').textContent.includes('T1E1') && Number.isFinite(document.getElementById('video').duration) && document.getElementById('video').duration > 0 && document.getElementById('video').currentTime > 0.3", timeout=15000)
+        check(True, 'episódio toca com duração válida e metadados carregados')
         # O cartão deve aparecer antes do fim; o utilizador também pode avançar manualmente.
         pg.evaluate("document.getElementById('video').currentTime = document.getElementById('video').duration - 6")
         pg.wait_for_selector('#nextEpisode:not(.hidden)', timeout=10000)
