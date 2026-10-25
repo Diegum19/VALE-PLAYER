@@ -1187,7 +1187,7 @@
       return;
     }
     if(p.engine!=='mpv'&&!p.nativeTried&&['codec','unsupported','video'].includes(reason)&&await V.nativeAvailable()){
-      if(!isCurrentPlayback(p))return;
+      if(!isCurrentPlayback(p)||p.nativeTried)return;
       p.nativeTried=true;
       const time=Number.isFinite(V.currentTime)?Math.max(0,V.currentTime):((S.resume[p.rkey]||{}).t||0);
       $('pmsg').textContent='Tentando motor nativo para recuperar a reprodução…';
