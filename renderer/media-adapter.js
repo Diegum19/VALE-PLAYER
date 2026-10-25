@@ -171,7 +171,8 @@
     return nativeVideo;
   }
 
-  function waitForNativeLoad(element, timeoutMs = 20000) {
+  function waitForNativeLoad(element, timeoutMs = 20000, signal) {
+    if (signal && signal.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
     if (state.sourceLoaded) return Promise.resolve();
     return new Promise((resolve, reject) => {
       let finished = false;
@@ -181,6 +182,7 @@
         clearTimeout(timer);
         element.removeEventListener('mpv-event', onEvent);
         element.removeEventListener('mpv-error', onError);
+        if (signal) signal.removeEventListener('abort', onAbort);
         if (error) reject(error);
         else resolve();
       };
@@ -190,17 +192,24 @@
         else if (data.error) finish(new Error(data.error));
       };
       const onError = (event) => finish(new Error(String(event.detail || 'Falha ao iniciar o motor nativo.')));
+      const onAbort = () => finish(new DOMException('Aborted', 'AbortError'));
       const timer = setTimeout(() => finish(new Error('Tempo esgotado ao carregar o vídeo no motor nativo.')), timeoutMs);
       element.addEventListener('mpv-event', onEvent);
       element.addEventListener('mpv-error', onError);
+      if (signal) signal.addEventListener('abort', onAbort, { once: true });
     });
   }
 
-  async function openNative(url, startAt = 0) {
+  async function openNative(url, startAt = 0, signal) {
     const modes = ['shared-texture', 'webgl'];
     let lastError = null;
     for (const mode of modes) {
+      if (signal && signal.aborted) throw new DOMException('Aborted', 'AbortError');
       const element = await ensureNativeVideo(mode);
+      if (signal && signal.aborted) {
+        await destroyNativeVideo();
+        throw new DOMException('Aborted', 'AbortError');
+      }
       try {
         state.error = null;
         state.source = url;
@@ -212,18 +221,23 @@
         state.height = 0;
         state.paused = true;
         state.ended = false;
-        const loaded = waitForNativeLoad(element);
-        await element.open(url);
-        await loaded;
+        const loaded = waitForNativeLoad(element, 20000, signal);
+        await Promise.all([element.open(url), loaded]);
+        if (signal && signal.aborted) throw new DOMException('Aborted', 'AbortError');
         if (Number(startAt) > 5) {
           const duration = Number(state.duration);
           const target = duration > 0 ? Math.min(Number(startAt), Math.max(0, duration - 0.25)) : Number(startAt);
           await element.seek(Math.max(0, target));
         }
+        if (signal && signal.aborted) throw new DOMException('Aborted', 'AbortError');
         return;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
         const text = String(lastError.message || lastError);
+        if ((signal && signal.aborted) || lastError.name === 'AbortError') {
+          await destroyNativeVideo();
+          throw new DOMException('Aborted', 'AbortError');
+        }
         const rendererFailure = /webgpu|shared.?texture|renderer|render.?context|wgl|d3d11|opengl|graphics context|render target/i.test(text);
         if (mode !== 'shared-texture' || !rendererFailure) throw lastError;
         await destroyNativeVideo();
