@@ -25,7 +25,7 @@
 
   const S = {
     profiles: [], session: null, pkey: '', tab: 'home', cats: {}, all: {}, catId: '__all__', items: [], view: [], shown: 0,
-    query: '', sort: '', filters: { genre: '', year: '', minRating: 0 }, favs: [], history: [], resume: {}, settings: { hideAdult: false, pin: '', autoNext: true, nextCountdown: 10, nextNoticeSeconds: 30 }, loadSeq: 0,
+    query: '', sort: '', filters: { category: '', genre: '', year: '', minRating: 0 }, favs: [], history: [], resume: {}, settings: { hideAdult: false, pin: '', autoNext: true, nextCountdown: 10, nextNoticeSeconds: 30 }, loadSeq: 0,
     posterCache: {}, detailCache: {}, detailPending: {}, posterPending: {}, posterChecked: {}, posterRetryAt: {},
   };
   const PAGE = 120;
@@ -296,7 +296,7 @@
   }
 
   async function selectTab(tab) {
-    S.tab = tab; S.catId = '__all__'; S.query = ''; S.sort = ''; S.filters = { genre: '', year: '', minRating: 0 };
+    S.tab = tab; S.catId = '__all__'; S.query = ''; S.sort = ''; S.filters = { category: '', genre: '', year: '', minRating: 0 };
     $('search').value = ''; $('sort').value = ''; $('genreFilter').value = ''; $('yearFilter').value = ''; $('ratingFilter').value = '0';
     const seq = ++S.loadSeq;
     sidebarTabs.forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
@@ -328,7 +328,12 @@
     const box = $('cats'); box.innerHTML = '';
     const add = (id, name) => {
       const b = el('button', 'focusable' + (S.catId === id ? ' on' : ''), name);
-      b.onclick = () => { S.catId = id; renderCats(); loadItems(++S.loadSeq); };
+      b.onclick = () => {
+        S.catId = id;
+        if (S.tab === 'movie' || S.tab === 'series') S.filters.category = id === '__all__' ? '' : id;
+        renderCats();
+        loadItems(++S.loadSeq);
+      };
       box.appendChild(b);
     };
     add('__all__', 'Todas');
@@ -361,27 +366,50 @@
     const enabled = ['movie','series','search'].includes(S.tab);
     const genreSelect = $('genreFilter'), yearSelect = $('yearFilter'), ratingSelect = $('ratingFilter');
     [genreSelect,yearSelect,ratingSelect].forEach((x) => x.classList.toggle('hidden', !enabled));
-    $('clearFilters').classList.toggle('hidden', !enabled || !(S.filters.genre || S.filters.year || S.filters.minRating));
-    if (!enabled) return;
+    if (!enabled) {
+      $('clearFilters').classList.add('hidden');
+      return;
+    }
+
     const source = S.items.filter((item) => S.tab !== 'search' || kindOf(item) !== 'live');
-    const genres = [...new Set(source.flatMap((item) => C.itemGenres(item)))].sort((x,y) => x.localeCompare(y,'pt-BR'));
-    const years = [...new Set(source.map((item) => C.itemYear(item)).filter(Boolean))].sort((x,y) => Number(y)-Number(x));
+    const genres = S.tab === 'search'
+      ? [...new Set(source.flatMap((item) => C.itemGenres(item)))].sort((x,y) => x.localeCompare(y,'pt-BR'))
+      : [];
+    const hiddenCategories = S.settings.hideAdult ? adultCats(S.tab) : new Set();
+    const categories = S.tab === 'search' ? [] : (S.cats[S.tab] || [])
+      .filter((item) => !hiddenCategories.has(String(item.category_id)))
+      .map((item) => ({ value: String(item.category_id), label: item.category_name || 'Sem nome' }));
+    const years = [...new Set(source.map((item) => C.itemYear(item)).filter(Boolean))]
+      .sort((x,y) => Number(y)-Number(x));
+
     const fill = (select, firstLabel, values, selected) => {
-      if (selected && !values.some((x) => String(x) === String(selected))) selected = '';
+      const options = values.map((item) => typeof item === 'string'
+        ? { value: item, label: item }
+        : { value: String(item.value), label: item.label });
+      if (selected && !options.some((item) => item.value === String(selected))) selected = '';
       select.replaceChildren(new Option(firstLabel,''));
-      values.forEach((value) => select.appendChild(new Option(String(value),String(value))));
+      options.forEach((item) => select.appendChild(new Option(item.label,item.value)));
       select.value = selected || '';
       return selected || '';
     };
-    S.filters.genre = fill(genreSelect,'Todos os gêneros',genres,S.filters.genre);
+
+    if (S.tab === 'search') {
+      S.filters.genre = fill(genreSelect,'Todos os gêneros',genres,S.filters.genre);
+      S.filters.category = '';
+    } else {
+      S.filters.category = fill(genreSelect,'Todas as categorias',categories,S.filters.category);
+      S.filters.genre = '';
+    }
     S.filters.year = fill(yearSelect,'Todos os anos',years,S.filters.year);
     ratingSelect.value = String(S.filters.minRating || 0);
-    $('clearFilters').classList.toggle('hidden', !(S.filters.genre || S.filters.year || S.filters.minRating));
+    $('clearFilters').classList.toggle('hidden', !(S.filters.category || S.filters.genre || S.filters.year || S.filters.minRating));
   }
 
   function computeView() {
     let v = C.filterItems(S.items, S.query);
-    if (['movie','series','search'].includes(S.tab)) v = C.filterByMetadata(v, S.filters);
+    if (['movie','series','search'].includes(S.tab)) {
+      v = C.filterByMetadata(v, { ...S.filters, genre: S.tab === 'search' ? S.filters.genre : '' });
+    }
     if (S.sort && (S.tab === 'movie' || S.tab === 'series')) v = C.sortItems(v, S.sort);
     S.view = v;
   }
@@ -442,16 +470,33 @@
   });
   $('sort').addEventListener('change', (e) => { S.sort = e.target.value; renderGrid(true); });
   function applyMetadataFilters() {
-    S.filters.genre = $('genreFilter').value;
     S.filters.year = $('yearFilter').value;
     S.filters.minRating = Number($('ratingFilter').value) || 0;
-    updateMetadataFilterOptions(); renderGrid(true);
+    if (S.tab === 'movie' || S.tab === 'series') {
+      S.filters.category = $('genreFilter').value;
+      S.filters.genre = '';
+      S.catId = S.filters.category || '__all__';
+      renderCats();
+      loadItems(++S.loadSeq);
+      return;
+    }
+    S.filters.genre = $('genreFilter').value;
+    S.filters.category = '';
+    updateMetadataFilterOptions();
+    renderGrid(true);
   }
   ['genreFilter','yearFilter','ratingFilter'].forEach((id) => $(id).addEventListener('change', applyMetadataFilters));
   $('clearFilters').addEventListener('click', () => {
-    S.filters = { genre:'', year:'', minRating:0 };
+    S.filters = { category:'', genre:'', year:'', minRating:0 };
     $('genreFilter').value = ''; $('yearFilter').value = ''; $('ratingFilter').value = '0';
-    updateMetadataFilterOptions(); renderGrid(true);
+    if (S.tab === 'movie' || S.tab === 'series') {
+      S.catId = '__all__';
+      renderCats();
+      loadItems(++S.loadSeq);
+      return;
+    }
+    updateMetadataFilterOptions();
+    renderGrid(true);
   });
   sidebarTabs.forEach((b) => (b.onclick = () => selectTab(b.dataset.tab)));
   $('logout').onclick = async () => { await P.storeSet('lastProfile', null); showLogin(); };

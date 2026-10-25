@@ -11,14 +11,29 @@ http.createServer((req, res) => {
     if (q.get('username') !== 'joao' || q.get('password') !== 'segredo') return j({ user_info: { auth: 0 } });
     switch (q.get('action')) {
       case null: return j({ user_info: { auth: 1, status: 'Active' }, server_info: {} });
-      case 'get_live_categories': case 'get_vod_categories': case 'get_series_categories':
-        return j([{ category_id: '1', category_name: 'Esportes' }, { category_id: '2', category_name: 'Filmes' }, { category_id: '3', category_name: 'Adultos +18' }]);
+      case 'get_live_categories':
+        return j([{ category_id: '1', category_name: 'Esportes' }, { category_id: '3', category_name: 'Adultos +18' }]);
+      case 'get_vod_categories':
+        return j([{ category_id: '2', category_name: 'Ação' }, { category_id: '4', category_name: 'Drama' }, { category_id: '3', category_name: 'Adultos +18' }]);
+      case 'get_series_categories':
+        return j([{ category_id: '4', category_name: 'Drama' }, { category_id: '3', category_name: 'Adultos +18' }]);
       case 'get_live_streams': return j(Array.from({ length: 300 }, (_, i) => ({ stream_id: 1000 + i, name: 'Canal ' + (i + 1), category_id: i >= 290 ? '3' : '1' })));
-      case 'get_vod_streams': return j([{ stream_id: 7, name: 'Filme Ação', container_extension: 'webm', category_id: '2', rating: '7.5', genre: 'Ação, Aventura', releaseDate: '2024-06-01', added: '100' }, { stream_id: 8, name: 'Outro Filme', container_extension: 'mkv', category_id: '2', rating: '9.1', genre: 'Drama', releasedate: '2022-01-01', added: '200' }]);
+      case 'get_vod_streams': {
+        const items = [
+          { stream_id: 7, name: 'Filme Ação', container_extension: 'webm', category_id: '2', rating: '7.5', genre: 'Ação, Aventura', releaseDate: '2024-06-01', added: '100' },
+          { stream_id: 8, name: 'Outro Filme', container_extension: 'mkv', category_id: '4', rating: '9.1', genre: 'Drama', releasedate: '2022-01-01', added: '200' }
+        ];
+        const category = q.get('category_id');
+        return j(category ? items.filter((item) => String(item.category_id) === category) : items);
+      }
       case 'get_short_epg': { const n = Math.floor(Date.now() / 1000), b = (t) => Buffer.from(t).toString('base64');
         return j({ epg_listings: [{ title: b('Jornal Agora'), description: b('d'), start_timestamp: String(n - 600), stop_timestamp: String(n + 600) }, { title: b('Novela das Nove'), description: b(''), start_timestamp: String(n + 600), stop_timestamp: String(n + 4200) }] }); }
       case 'get_vod_info': return j({ info: { plot: 'Sinopse do filme.', cast: 'Ator Um', director: 'Diretora X', duration: '1h 40m' }, movie_data: { container_extension: q.get('vod_id') === '8' ? 'mkv' : 'webm' } });
-      case 'get_series': return j([{ series_id: 3, name: 'Série Um', category_id: '2', plot: 'Uma série.', genre: 'Drama', releaseDate: '2023-01-01', rating: '8.0' }]);
+      case 'get_series': {
+        const items = [{ series_id: 3, name: 'Série Um', category_id: '4', plot: 'Uma série.', genre: 'Drama', releaseDate: '2023-01-01', rating: '8.0' }];
+        const category = q.get('category_id');
+        return j(category ? items.filter((item) => String(item.category_id) === category) : items);
+      }
       case 'get_series_info': return j({ episodes: { 1: [{ id: '31', episode_num: 1, title: 'Piloto', container_extension: 'webm', info: { plot: 'Primeiro episódio de teste.' } }, { id: '32', episode_num: 2, title: 'Segundo', container_extension: 'webm', info: { plot: 'Segundo episódio de teste.' } }], 2: [{ id: '33', episode_num: 1, title: 'Volta', container_extension: 'webm', info: { plot: 'Primeiro episódio da segunda temporada.' } }] } });
     }
     return j([]);
