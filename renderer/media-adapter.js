@@ -137,6 +137,7 @@
   function destroyNativeVideo() {
     const old = nativeVideo;
     if (!old) return nativeDestroying;
+    try { old.classList.add('hidden'); } catch {}
     nativeVideo = null;
     for (const record of sourceListeners) {
       if (record.onNative) old.removeEventListener(record.type, record.onNative, record.capture);
@@ -238,12 +239,10 @@
 
   function reset() {
     try { htmlVideo.pause(); htmlVideo.removeAttribute('src'); htmlVideo.load(); } catch {}
-    if (nativeVideo) {
-      const element = nativeVideo;
-      resetNativeState();
-      try { element.stop().catch(() => {}); } catch {}
-      try { element.removeAttribute('src'); } catch {}
-    }
+    // Destroy the previous native session instead of queueing stop/loadfile on the same handle.
+    // The next open waits for this destruction to finish, so delayed events cannot stop the new episode.
+    if (nativeVideo) void destroyNativeVideo();
+    else resetNativeState();
   }
 
   const facade = {
