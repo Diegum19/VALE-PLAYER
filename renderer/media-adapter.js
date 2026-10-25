@@ -124,9 +124,10 @@
     playerFrame.insertBefore(element, vignette || null);
     nativeVideo = element;
     for (const record of sourceListeners) attachRecord(record, nativeVideo);
-    nativeVideo.addEventListener('mpv-event', onMpvEvent);
-    nativeVideo.addEventListener('mpv-state', onMpvState);
+    nativeVideo.addEventListener('mpv-event', (event) => { if (nativeVideo === element) onMpvEvent(event); });
+    nativeVideo.addEventListener('mpv-state', (event) => { if (nativeVideo === element) onMpvState(event); });
     nativeVideo.addEventListener('mpv-error', (event) => {
+      if (nativeVideo !== element) return;
       const message = event.detail || 'Falha no motor nativo MPV';
       state.error = mediaError(message);
       if (state.sourceLoaded || state.status === 'Playing' || state.status === 'Paused') dispatchMedia('error');
