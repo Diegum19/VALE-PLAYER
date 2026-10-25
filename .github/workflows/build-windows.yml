@@ -27,7 +27,53 @@ jobs:
         with:
           node-version: 24
 
-      - name: Instalar dependências do projeto
+      - name: Preparar ferramentas C++ para o motor nativo
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Baixar e validar o SDK libmpv LGPL
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $url = 'https://github.com/zhongfly/mpv-winbuild/releases/download/2026-10-25-baa3e11d42/mpv-dev-lgpl-x86_64-20261025-git-baa3e11d42.7z'
+          $expected = '6429ebba4b6bfc5dd18ac5ac084f00776db0db4e767ef1bfb815fc78ec5bda2a'
+          $archive = Join-Path $env:RUNNER_TEMP 'mpv-dev-lgpl.7z'
+          $extract = Join-Path $env:RUNNER_TEMP 'mpv-dev-lgpl'
+          Invoke-WebRequest -Uri $url -OutFile $archive
+          $actual = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw "Hash SHA-256 inesperado para libmpv: $actual" }
+          $sevenZip = (Get-Command 7z.exe -ErrorAction SilentlyContinue).Source
+          if (-not $sevenZip) { $sevenZip = Join-Path $env:ProgramFiles '7-Zip/7z.exe' }
+          if (-not (Test-Path $sevenZip)) { throw '7-Zip não está disponível no runner.' }
+          New-Item -ItemType Directory -Force -Path $extract | Out-Null
+          & $sevenZip x $archive "-o$extract" -y | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Não foi possível extrair o SDK libmpv.' }
+          $client = Get-ChildItem $extract -Recurse -Filter client.h | Select-Object -First 1
+          $dll = Get-ChildItem $extract -Recurse -Filter libmpv-2.dll | Select-Object -First 1
+          if (-not $client -or -not $dll) { throw 'SDK sem client.h ou libmpv-2.dll.' }
+          $root = Join-Path $env:USERPROFILE 'libmpv'
+          $include = Join-Path $root 'include/mpv'
+          $bin = Join-Path $root 'bin'
+          $lib = Join-Path $root 'lib'
+          New-Item -ItemType Directory -Force -Path $include,$bin,$lib | Out-Null
+          Copy-Item (Join-Path $client.DirectoryName '*') $include -Recurse -Force
+          Get-ChildItem $extract -Recurse -Filter '*.dll' | ForEach-Object {
+            Copy-Item $_.FullName (Join-Path $bin $_.Name) -Force
+          }
+          $dllPath = Join-Path $bin 'libmpv-2.dll'
+          $defPath = Join-Path $lib 'mpv.def'
+          $libPath = Join-Path $lib 'mpv.lib'
+          $exports = & dumpbin.exe /nologo /exports $dllPath |
+            Select-String '^\s+\d+\s+[0-9A-Fa-f]+\s+[0-9A-Fa-f]+\s+(\S+)' |
+            ForEach-Object { $_.Matches[0].Groups[1].Value }
+          if ($LASTEXITCODE -ne 0 -or @($exports).Count -eq 0) { throw 'Não foi possível ler os símbolos exportados do libmpv.' }
+          @('LIBRARY libmpv-2.dll','EXPORTS') + $exports | Set-Content -Path $defPath -Encoding ascii
+          & lib.exe /nologo "/def:$defPath" "/out:$libPath" /machine:x64
+          if ($LASTEXITCODE -ne 0) { throw 'Não foi possível gerar mpv.lib para o compilador MSVC.' }
+          Write-Host "SDK libmpv LGPL validado: $actual"
+
+      - name: Instalar dependências e compilar o motor nativo
         run: npm install --no-audit --no-fund
 
       - name: Executar testes
@@ -55,6 +101,9 @@ jobs:
           if (-not (Test-Path $ffmpeg)) { throw "FFmpeg estático não foi encontrado: $ffmpeg" }
           & $ffmpeg -hide_banner -loglevel error -f lavfi -i "color=c=0x101b2b:s=96x54:r=1:d=30" -an -c:v libvpx -deadline realtime -cpu-used 8 -b:v 2k -g 10 -pix_fmt yuv420p -threads 1 -f webm -y test/clip.webm
           if (-not (Test-Path 'test/clip.webm')) { throw 'Não foi possível gerar o vídeo de teste.' }
+
+      - name: Testar decodificação no motor nativo MPV
+        run: node test/native-mpv.test.js
 
       - name: Testar interface com Xtream simulado
         run: python test/ui.test.py
