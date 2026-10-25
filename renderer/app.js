@@ -1057,8 +1057,13 @@
       const fail=(reason)=>{
         if(!active())return;
         p.lastPlaybackError=reason;
-        if(!done){done=true;removeListeners();reject(new Error(reason));}
-        else if(p.started&&!p.stopped)runtimeError(p,reason);
+        if(!done){
+          done=true;
+          // Invalidate this failed attempt immediately so late play/error events cannot start it again.
+          if(p.attemptSeq===attemptId)p.attemptSeq++;
+          removeListeners();
+          reject(new Error(reason));
+        } else if(p.started&&!p.stopped)runtimeError(p,reason);
       };
       const onPlaying=()=>{
         // 'playing' só confirma esta tentativa quando o novo recurso já entregou dados reais.
