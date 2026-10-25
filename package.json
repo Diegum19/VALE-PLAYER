@@ -64,5 +64,10 @@
       "node_modules/electron-mpv-video/native/mpv-addon/build/Release/*.node",
       "node_modules/electron-mpv-video/native/mpv-addon/build/Release/*.dll"
     ]
+  },
+  "overrides": {
+    "electron-mpv-video": {
+      "node-gyp": "^12.2.0"
+    }
   }
 }
