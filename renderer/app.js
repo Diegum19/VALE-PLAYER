@@ -1265,7 +1265,8 @@
     let started=false;
     if(opts.forceMpv)started=await tryEngine('mpv');
     else started=await tryEngine('chromium');
-    if(!started&&!opts.forceMpv&&!p.stopped&&await V.nativeAvailable()){
+    const nativeFallbackReasons=['codec','unsupported','video','hls','dash','ts','nohls','nompegts'];
+    if(!started&&!opts.forceMpv&&!p.stopped&&nativeFallbackReasons.includes(p.lastPlaybackError)&&await V.nativeAvailable()){
       p.nativeTried=true;
       $('pmsg').textContent='Tentando motor nativo para ampliar a compatibilidade…';
       started=await tryEngine('mpv');
