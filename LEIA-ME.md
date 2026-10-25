@@ -1,4 +1,4 @@
-# Vela Player 1.0.1 (PC / Windows 10-11 64 bits)
+# Vela Player 1.1.0 (PC / Windows 10-11 64 bits)
 
 App de PC com **reprodutor embutido**: o cliente baixa **um único arquivo**
 (`Instalar-Vela-Player.exe`), dá dois cliques e abre pelo atalho. Sem CMD, sem ZIP,
@@ -28,6 +28,18 @@ O build usa Electron 45, cujo suporte oficial é Windows 10 ou posterior, em arq
 1. Crie um repositório **privado** no GitHub e envie esta pasta inteira.
 2. Aba **Actions → Gerar instalador Windows → Run workflow**.
 3. Baixe `Instalar-Vela-Player.exe` em *Artifacts* no fluxo concluído.
+
+## Novidades da 1.1.0
+- **Motor nativo MPV/libmpv:** quando o Chromium falha ao iniciar um filme ou episódio, o aplicativo tenta automaticamente o motor nativo dentro do mesmo player.
+- **Compatibilidade ampliada:** o runtime libmpv/FFmpeg pode reconhecer mais contêineres, vídeo e áudio, incluindo alguns arquivos MKV, HEVC/H.265 e AC-3/E-AC-3, conforme o codec e as opções presentes no build.
+- **Recuperação durante a reprodução:** erros de decodificação do Chromium podem acionar o motor nativo a partir da posição atual, preservando pausa e navegação quando possível.
+- **Sem dois motores disputando o episódio:** ao mudar de conteúdo, a sessão nativa anterior é destruída antes de abrir outra, prevenindo que comandos atrasados parem o vídeo novo.
+- **Renderização em duas vias:** tenta a superfície nativa compartilhada e pode recorrer à renderização WebGL caso a via de GPU falhe.
+- **Diagnóstico do motor:** identifica o motor atual e mostra o codec/renderer MPV quando ele é utilizado.
+- **Build do motor protegido:** o CI baixa a versão específica do SDK libmpv LGPL, valida seu SHA-256 e executa um teste real de decodificação antes de publicar o instalador.
+- **Licenças:** o instalador inclui THIRD-PARTY-LICENSES.md para o runtime nativo e suas dependências.
+
+**Limite importante:** o motor nativo amplia a compatibilidade, mas não corrige um arquivo danificado, URL vencida, bloqueio do servidor ou todos os codecs possíveis. A disponibilidade exata depende da compilação distribuída.
 
 ## Novidades da 1.0.1
 - **Ciclo de vida do vídeo mais seguro:** cada fonte/tentativa tem identidade própria; eventos atrasados e abortos do vídeo anterior não podem interromper o episódio recém-aberto.
