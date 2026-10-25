@@ -1,4 +1,4 @@
-# Vela Player 1.0.0 (PC / Windows 10-11 64 bits)
+# Vela Player 1.0.1 (PC / Windows 10-11 64 bits)
 
 App de PC com **reprodutor embutido**: o cliente baixa **um único arquivo**
 (`Instalar-Vela-Player.exe`), dá dois cliques e abre pelo atalho. Sem CMD, sem ZIP,
@@ -28,6 +28,13 @@ O build usa Electron 45, cujo suporte oficial é Windows 10 ou posterior, em arq
 1. Crie um repositório **privado** no GitHub e envie esta pasta inteira.
 2. Aba **Actions → Gerar instalador Windows → Run workflow**.
 3. Baixe `Instalar-Vela-Player.exe` em *Artifacts* no fluxo concluído.
+
+## Novidades da 1.0.1
+- **Ciclo de vida do vídeo mais seguro:** cada fonte/tentativa tem identidade própria; eventos atrasados e abortos do vídeo anterior não podem interromper o episódio recém-aberto.
+- **Pausa mais previsível:** o app distingue pausa solicitada pelo usuário de pausas transitórias durante carregamento, troca de fonte e recuperação.
+- **Recuperação de mídia HLS:** tenta uma recuperação limitada para falhas fatais de mídia e de rede antes de mostrar erro, evitando loops infinitos.
+- **Erros de codec mais precisos:** distingue falha de rede, aborto, erro de decodificação e formato não suportado; o diagnóstico mostra também a mensagem do erro nativo, quando disponível.
+- **Regressão de troca rápida de episódios:** teste automatizado abre e fecha um episódio repetidamente e injeta eventos atrasados para conferir que não causam pausa indevida nem erro falso.
 
 ## Novidades da 1.0.0
 - **Versão 1.0.0:** primeira versão de lançamento consolidada, com a linha visual cinematográfica e controles centralizados.
