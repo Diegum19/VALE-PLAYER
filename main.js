@@ -9,6 +9,7 @@ const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) app.quit();
 
 let win = null;
+let mpvMainService = null;
 const dataFile = () => path.join(app.getPath('userData'), 'vela-data.json');
 const credFile = () => path.join(app.getPath('userData'), 'login.bin');
 
@@ -41,11 +42,12 @@ function createWindow() {
     icon: path.join(__dirname, 'renderer', 'assets', 'app-icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true, nodeIntegration: false, sandbox: true,
+      contextIsolation: true, nodeIntegration: false, sandbox: false,
     },
   });
   Menu.setApplicationMenu(null);
   const entryFile = path.join(__dirname, 'renderer', 'index.html');
+  if (mpvMainService) mpvMainService.attachWindow(win);
   win.loadFile(entryFile);
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   const { pathToFileURL } = require('url');
@@ -56,8 +58,15 @@ function createWindow() {
 
 if (hasSingleInstanceLock) app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   if (!hasSingleInstanceLock) return;
+  process.env.MPV_HWDEC = process.env.MPV_HWDEC || 'auto-safe';
+  try {
+    const { createMpvMain } = await import('electron-mpv-video/main');
+    mpvMainService = createMpvMain();
+  } catch (error) {
+    console.warn('Vela Player: motor MPV opcional indisponível.', error);
+  }
   // Servidores de mídia normalmente não enviam cabeçalhos CORS; o app é um player local,
   // então libera o acesso do reprodutor embutido às respostas dos servidores.
   session.defaultSession.webRequest.onHeadersReceived((details, cb) => {
@@ -111,5 +120,11 @@ app.whenReady().then(() => {
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 
-app.on('before-quit', () => { if (cache) { try { fs.writeFileSync(dataFile(), JSON.stringify(cache)); } catch {} } });
+app.on('before-quit', () => {
+  if (mpvMainService) {
+    void mpvMainService.dispose().catch(() => {});
+    mpvMainService = null;
+  }
+  if (cache) { try { fs.writeFileSync(dataFile(), JSON.stringify(cache)); } catch {} }
+});
 app.on('window-all-closed', () => { app.quit(); });
