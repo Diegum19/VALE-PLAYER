@@ -1,4 +1,4 @@
-# Vela Player 1.1.3 (PC / Windows 10-11 64 bits)
+# Vela Player 1.1.4 (PC / Windows 10-11 64 bits)
 
 App de PC com **reprodutor embutido**: o cliente baixa **um único arquivo**
 (`Instalar-Vela-Player.exe`), dá dois cliques e abre pelo atalho. Sem CMD, sem ZIP,
@@ -28,6 +28,10 @@ O build usa Electron 45, cujo suporte oficial é Windows 10 ou posterior, em arq
 1. Crie um repositório **privado** no GitHub e envie esta pasta inteira.
 2. Aba **Actions → Gerar instalador Windows → Run workflow**.
 3. Baixe `Instalar-Vela-Player.exe` em *Artifacts* no fluxo concluído.
+
+## Novidades da 1.1.4
+- **Abertura inicial e reconexão diferenciadas:** uma primeira falha de rede em filmes/séries ainda pode tentar o MPV; o fallback só é adiado quando já está no ciclo de reconexão.
+- **Política com testes unitários:** novas verificações cobrem a decisão de adiar/tentar o motor nativo em aberturas, reconexões de VOD e canais ao vivo.
 
 ## Novidades da 1.1.3
 - **Recuperação com prioridade correta:** falhas de codec podem migrar imediatamente para o MPV; erros de rede/tempo esgotado usam primeiro as reconexões limitadas e só depois tentam outro motor.

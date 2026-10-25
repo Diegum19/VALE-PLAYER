@@ -3,7 +3,7 @@
   const C = window.VelaCore;
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-  const APP_VERSION = '1.1.3';
+  const APP_VERSION = '1.1.4';
 
   // ---- Adaptador de plataforma: no PC usa o Electron; em outras plataformas (TV) usa a web ----
   const P = window.vela || {
@@ -1297,8 +1297,7 @@
     let started=false;
     if(opts.forceMpv)started=await tryEngine('mpv');
     else started=await tryEngine('chromium');
-    const networkRetryDeferred=['network','timeout'].includes(p.lastPlaybackError)&&
-      ((kind==='live'&&Number(opts.retries||0)<3)||(kind!=='live'&&Number(opts.runtimeRetries||0)<2));
+    const networkRetryDeferred=C.shouldDeferNativeFallbackForStartup(kind,p.lastPlaybackError,kind==='live'?opts.retries:opts.runtimeRetries);
     if(!started&&!opts.forceMpv&&!p.stopped&&!networkRetryDeferred&&C.shouldUseNativeFallback(kind,p.lastPlaybackError,p.nativeTried,p.nativeFallbackBlocked)&&await V.nativeAvailable()){
       p.nativeTried=true;
       $('pmsg').textContent='Tentando motor nativo para ampliar a compatibilidade…';

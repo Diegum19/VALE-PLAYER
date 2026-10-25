@@ -36,6 +36,13 @@ assert.strictEqual(C.shouldUseNativeFallbackAfterRuntimeError('series', 'network
 assert.strictEqual(C.shouldUseNativeFallbackAfterRuntimeError('live', 'timeout', 2), false);
 assert.strictEqual(C.shouldUseNativeFallbackAfterRuntimeError('live', 'timeout', 3), true);
 assert.strictEqual(C.shouldUseNativeFallbackAfterRuntimeError('live', 'codec', 0, true), false);
+assert.strictEqual(C.shouldDeferNativeFallbackForStartup('series', 'network', 0), false);
+assert.strictEqual(C.shouldDeferNativeFallbackForStartup('series', 'network', 1), true);
+assert.strictEqual(C.shouldDeferNativeFallbackForStartup('series', 'network', 2), false);
+assert.strictEqual(C.shouldDeferNativeFallbackForStartup('live', 'timeout', 0), true);
+assert.strictEqual(C.shouldDeferNativeFallbackForStartup('live', 'timeout', 2), true);
+assert.strictEqual(C.shouldDeferNativeFallbackForStartup('live', 'timeout', 3), false);
+assert.strictEqual(C.shouldDeferNativeFallbackForStartup('series', 'codec', 0), false);
 assert.deepStrictEqual(C.qualityChoices([{ height: 720, width: 1280, bitrate: 1800000 }, { height: 1080, width: 1920, bitrate: 5000000 }, { height: 720, width: 1280, bitrate: 2800000 }]).map(q => [q.index, q.label]), [[1, '1080p · 5.0 Mbps'], [2, '720p · 2.8 Mbps']]);
 assert.deepStrictEqual(C.streamUrls('h.com', 'u', 'p', 'live', { stream_id: 1, direct_source: 'javascript:alert(1)' })[0].startsWith('http://h.com/live/'), true);
 
