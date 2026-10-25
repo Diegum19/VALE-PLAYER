@@ -1040,6 +1040,7 @@
   function attempt(p, mode, url, startAt) {
     return new Promise((resolve, reject) => {
       const attemptId=(p.attemptSeq=(p.attemptSeq||0)+1);
+      const nativeController=mode==='mpv'&&typeof AbortController!=='undefined'?new AbortController():null;
       let done=false, hlsMediaRecoveries=0, hlsNetworkRecoveries=0;
       const active=()=>isCurrentPlayback(p)&&p.attemptSeq===attemptId;
       const removeListeners=()=>{
@@ -1052,13 +1053,17 @@
       };
       const cancel=()=>{
         if(done)return;
-        done=true;removeListeners();reject(new Error('aborted'));
+        done=true;
+        if(nativeController)nativeController.abort();
+        removeListeners();
+        reject(new Error('aborted'));
       };
       const fail=(reason)=>{
         if(!active())return;
         p.lastPlaybackError=reason;
         if(!done){
           done=true;
+          if(nativeController)nativeController.abort();
           // Invalidate this failed attempt immediately so late play/error events cannot start it again.
           if(p.attemptSeq===attemptId)p.attemptSeq++;
           removeListeners();
@@ -1100,7 +1105,7 @@
         if (mode === 'mpv') {
           p.engine='mpv';
           V.setEngine('mpv');
-          void V.openNative(url,startAt).then(()=>{
+          void V.openNative(url,startAt,nativeController&&nativeController.signal).then(()=>{
             if(!active())return;
             const request=V.play();
             if(request&&typeof request.catch==='function')request.catch(error=>{
