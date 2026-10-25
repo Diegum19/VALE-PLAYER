@@ -3,7 +3,7 @@
   const C = window.VelaCore;
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-  const APP_VERSION = '1.0.0';
+  const APP_VERSION = '1.0.1';
 
   // ---- Adaptador de plataforma: no PC usa o Electron; em outras plataformas (TV) usa a web ----
   const P = window.vela || {
@@ -927,6 +927,10 @@
   // ---- Reprodutor embutido ----
   const V=$('video');V.controls=false;V.preload='auto';V.playsInline=true;let pl=null,playbackGeneration=0,hideTimer=null,epgTimer=null,numBuf='',numTimer=null,seekDragging=false,playerFullscreen=false;
   function isCurrentPlayback(p){return !!p&&pl===p&&!p.stopped&&p.generation===playbackGeneration;}
+  function isCurrentNativeSource(p){
+    if(!isCurrentPlayback(p)||p.hls||p.ts||p.dash||!p.currentUrl||!V.currentSrc)return false;
+    try{return new URL(V.currentSrc,document.baseURI).href===new URL(p.currentUrl,document.baseURI).href;}catch{return false;}
+  }
   function togglePlayerFullscreen(force){playerFullscreen=typeof force==='boolean'?force:!playerFullscreen;P.fullscreen(playerFullscreen);}
   function refreshTimeline(){
     const live=!!(pl&&pl.kind==='live');$('seekArea').classList.toggle('hidden',live);$('liveLabel').classList.toggle('hidden',!live);$('skipBack').classList.toggle('hidden',live);$('skipForward').classList.toggle('hidden',live);
@@ -1070,6 +1074,7 @@
         if(reason==='aborted')return;
         // HLS/DASH/TS têm seus próprios eventos de erro e recuperação; não duplicar retries aqui.
         if(p.hls||p.ts||p.dash)return;
+        if(!isCurrentNativeSource(p))return;
         fail(reason);
       };
       const timer=setTimeout(()=>fail('timeout'),20000);
@@ -1168,11 +1173,9 @@
   }
   V.addEventListener('error', () => {
     const p=pl;
-    if(!isCurrentPlayback(p)||!p.started||!V.error)return;
+    if(!isCurrentNativeSource(p)||!p.started||!V.error)return;
     const reason=mediaErrorReason(V.error);
     if(reason==='aborted')return;
-    // Bibliotecas de streaming tratam erros de seus próprios motores.
-    if(p.hls||p.ts||p.dash)return;
     runtimeError(p,reason);
   });
 
