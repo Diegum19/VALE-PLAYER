@@ -1,8 +1,8 @@
 {
   "name": "vela-player",
   "productName": "Vela Player",
-  "version": "1.0.0",
-  "description": "Vela Player 1.0.0 - experiência de streaming, filtros de catálogo e reprodução resiliente",
+  "version": "1.0.1",
+  "description": "Vela Player 1.0.1 - reprodução mais resiliente, proteção contra eventos atrasados e recuperação de mídia",
   "main": "main.js",
   "author": "Vela Player",
   "license": "UNLICENSED",
