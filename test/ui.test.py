@@ -67,12 +67,16 @@ try:
         pg.wait_for_function("document.getElementById('video').currentTime>0.5", timeout=15000)
         check(True, 'filme toca no player embutido')
         # Injeta falha transitória para verificar a recuperação de rede mantendo o tempo de reprodução.
+        pg.click('#playPause')
         recovery = pg.evaluate("""() => {
           const v = document.getElementById('video');
-          v.pause(); v.currentTime = 8;
+          v.currentTime = 8;
           window.__recoveryMetadata = false;
           v.addEventListener('loadedmetadata', () => { window.__recoveryMetadata = true; }, { once: true });
+          // Simula MediaError real; eventos de erro sem erro na fonte atual devem ser ignorados.
+          Object.defineProperty(v, 'error', { configurable: true, value: { code: 2, message: 'Falha de rede simulada' } });
           v.dispatchEvent(new Event('error'));
+          delete v.error;
           return true;
         }""")
         check(recovery, 'falha transitória simulada')
@@ -176,6 +180,27 @@ try:
         pg.click('#dfav'); pg.click('#episodes button >> nth=0')
         pg.wait_for_function("document.getElementById('ptitle').textContent.includes('T1E1') && Number.isFinite(document.getElementById('video').duration) && document.getElementById('video').duration > 0 && document.getElementById('video').currentTime > 0.3", timeout=15000)
         check(True, 'episódio toca com duração válida e metadados carregados')
+        # Regressão: sair e reabrir rapidamente, recebendo um error atrasado da fonte anterior.
+        # Esse evento não pertence ao novo vídeo e não pode interromper nem pausar a reprodução.
+        for cycle in range(5):
+            pg.click('#pback')
+            pg.wait_for_selector('#detail:not(.hidden)', timeout=3000)
+            pg.click('#episodes button >> nth=0')
+            pg.evaluate("""() => setTimeout(() => {
+              const v = document.getElementById('video');
+              if (!v.error) v.dispatchEvent(new Event('error'));
+            }, 0)""")
+            pg.wait_for_function("""() => {
+              const v = document.getElementById('video');
+              return document.getElementById('ptitle').textContent.includes('T1E1') &&
+                !v.paused && v.readyState >= 2 && v.currentTime > 0.2 &&
+                document.getElementById('pmsg').textContent === '';
+            }""", timeout=12000)
+            pg.wait_for_timeout(250)
+            check(pg.evaluate("""() => {
+              const v = document.getElementById('video');
+              return !v.paused && !v.error && document.getElementById('pmsg').textContent === '';
+            }"""), f'abrir e fechar episódio rapidamente sem erro/pausa indevida ({cycle + 1}/5)')
         # O cartão deve aparecer antes do fim; o utilizador também pode avançar manualmente.
         pg.evaluate("document.getElementById('video').currentTime = document.getElementById('video').duration - 6")
         pg.wait_for_selector('#nextEpisode:not(.hidden)', timeout=10000)
