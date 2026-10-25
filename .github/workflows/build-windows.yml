@@ -6,11 +6,11 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-windows:
-    name: Testar e compilar instalador
+    name: Testar, compilar e publicar instalador
     runs-on: windows-latest
     timeout-minutes: 35
 
@@ -83,12 +83,19 @@ jobs:
           Get-Item $installer | Format-List Name, Length
           Write-Host "SHA-256: $hash"
 
-      - name: Disponibilizar instalador em Actions
-        uses: actions/upload-artifact@v4
+      - name: Publicar instalador para download direto
+        uses: softprops/action-gh-release@v2
         with:
-          name: Vela-Player-Instalador-Windows-x64
-          path: |
+          tag_name: build-${{ github.run_number }}
+          name: Vela Player — build ${{ github.run_number }}
+          body: |
+            Instalador do Vela Player para Windows 64 bits.
+
+            Este arquivo foi publicado automaticamente após a conclusão dos testes e da compilação.
+          target_commitish: ${{ github.sha }}
+          files: |
             dist/Instalar-Vela-Player.exe
             dist/Instalar-Vela-Player.exe.sha256.txt
-          if-no-files-found: error
-          retention-days: 30
+          draft: false
+          prerelease: false
+          make_latest: true
