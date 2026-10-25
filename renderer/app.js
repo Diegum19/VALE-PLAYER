@@ -3,7 +3,7 @@
   const C = window.VelaCore;
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-  const APP_VERSION = '1.0.1';
+  const APP_VERSION = '1.1.0';
 
   // ---- Adaptador de plataforma: no PC usa o Electron; em outras plataformas (TV) usa a web ----
   const P = window.vela || {
@@ -877,7 +877,7 @@
       const duration=Number.isFinite(V.duration)?C.fmtTime(V.duration):'—';
       let bufferedAhead=0;
       try { for(let i=0;i<V.buffered.length;i++){const start=V.buffered.start(i),end=V.buffered.end(i);if(start<=V.currentTime&&end>=V.currentTime){bufferedAhead=Math.max(0,end-V.currentTime);break;}} } catch {}
-      const engine=!p?'Nenhum':p.hls?'HLS.js':p.dash?'dash.js':p.ts?'mpegts.js':'HTMLMediaElement / Chromium';
+      const engine=!p?'Nenhum':p.engine==='mpv'?'MPV nativo (libmpv/FFmpeg)':p.hls?'HLS.js':p.dash?'dash.js':p.ts?'mpegts.js':'HTMLMediaElement / Chromium';
       const networkLabels=['Sem fonte','Carregando','Carregado'];
       const readyLabels=['Sem dados','Metadados','Pronto para exibir quadro','Pronto para iniciar','Pronto para reprodução'];
       const checks=[
@@ -889,7 +889,7 @@
         ['Tempo',seconds+' / '+duration],['Buffer futuro',bufferedAhead.toFixed(1)+' s'],
         ['Estado da rede',networkLabels[V.networkState]||String(V.networkState)],
         ['Estado do decodificador',readyLabels[V.readyState]||String(V.readyState)],
-        ['Recuperações tentadas',p?String(p.runtimeRetries||0):'0'],['Tentativa de fonte',p?String(p.attemptSeq||0):'0'],['Estado solicitado',p?(p.desiredPaused?'Pausado pelo usuário':'Em reprodução'):'—'],['Último erro',p&&p.lastPlaybackError||'Nenhum'],
+        ['Recuperações tentadas',p?String(p.runtimeRetries||0):'0'],['Tentativa de fonte',p?String(p.attemptSeq||0):'0'],['Estado solicitado',p?(p.desiredPaused?'Pausado pelo usuário':'Em reprodução'):'—'],['Motor nativo disponível',awaitNativeDiagnostic()],['Renderizador MPV',p&&p.engine==='mpv'?V.nativeRenderer:'—'],['Codec nativo',p&&p.engine==='mpv'?V.nativeState.codec:'—'],['Último erro',p&&p.lastPlaybackError||'Nenhum'],
         ['MP4 · H.264/AAC',V.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"')||'Não reportado'],
         ['MP4 · HEVC/H.265',V.canPlayType('video/mp4; codecs="hvc1.1.6.L93.B0"')||'Não reportado'],
         ['MP4 · AV1',V.canPlayType('video/mp4; codecs="av01.0.08M.08"')||'Não reportado'],
@@ -925,12 +925,18 @@
   });
 
   // ---- Reprodutor embutido ----
-  const V=$('video');V.controls=false;V.preload='auto';V.playsInline=true;let pl=null,playbackGeneration=0,hideTimer=null,epgTimer=null,numBuf='',numTimer=null,seekDragging=false,playerFullscreen=false;
+  const V=window.VelaMediaAdapter;
+  if(!V)throw new Error('Adaptador de mídia não foi carregado.');
+  let pl=null,playbackGeneration=0,hideTimer=null,epgTimer=null,numBuf='',numTimer=null,seekDragging=false,playerFullscreen=false;
+  let nativeAvailabilityCache='Verificando';
+  V.nativeAvailable().then((available)=>{nativeAvailabilityCache=available?'Sim':'Não';}).catch(()=>{nativeAvailabilityCache='Não';});
+  function awaitNativeDiagnostic(){return nativeAvailabilityCache;}
   function isCurrentPlayback(p){return !!p&&pl===p&&!p.stopped&&p.generation===playbackGeneration;}
   function isCurrentNativeSource(p){
-    // currentSrc may be a CDN URL after a legitimate HTTP redirect, so don't require URL equality.
-    // load()/reset clears currentSrc; a non-empty currentSrc here means the browser selected a source.
-    return !!(isCurrentPlayback(p)&&!p.hls&&!p.ts&&!p.dash&&p.currentUrl&&V.currentSrc);
+    if(!isCurrentPlayback(p)||!p.currentUrl)return false;
+    if(p.engine==='mpv')return !!V.currentSrc;
+    // currentSrc can point to a CDN after a legal HTTP redirect.
+    return !!(!p.hls&&!p.ts&&!p.dash&&V.currentSrc);
   }
   function togglePlayerFullscreen(force){playerFullscreen=typeof force==='boolean'?force:!playerFullscreen;P.fullscreen(playerFullscreen);}
   function refreshTimeline(){
@@ -1012,12 +1018,12 @@
     try { p.dash && p.dash.reset(); } catch {}
     p.hls = p.ts = p.dash = null;
   }
-  function resetVideo() { try { V.pause(); V.removeAttribute('src'); V.load(); } catch {} }
+  function resetVideo() { try { V.reset(); } catch {} }
 
   function modeFor(kind, url) { return C.mediaMode(kind, url); }
 
   function playbackErrorMessage(code) {
-    const reason={nohls:'Este sistema não conseguiu reproduzir HLS.',nompegts:'O navegador não oferece suporte ao motor MPEG-TS para este fluxo.',nodash:'O motor MPEG-DASH não está disponível.',codec:'O fluxo usa um codec de áudio ou vídeo que este sistema não consegue decodificar.',unsupported:'O formato/contêiner deste arquivo não é compatível com o reprodutor integrado.',autoplay:'O sistema bloqueou o início automático. Clique em Reproduzir para tentar novamente.',network:'Falha de rede ao carregar o vídeo.',timeout:'O servidor demorou demais para iniciar a reprodução.',hls:'O manifesto HLS falhou ou contém um formato incompatível.',dash:'O manifesto DASH falhou ou contém um formato incompatível.',ts:'O fluxo MPEG-TS/FLV não pôde ser interpretado.',video:'O navegador não conseguiu decodificar este arquivo.'};
+    const reason={nohls:'Este sistema não conseguiu reproduzir HLS.',nompegts:'O navegador não oferece suporte ao motor MPEG-TS para este fluxo.',nodash:'O motor MPEG-DASH não está disponível.',codec:'O fluxo usa um codec de áudio ou vídeo que este sistema não consegue decodificar.',unsupported:'O formato/contêiner deste arquivo não é compatível com o reprodutor integrado.',native:'O motor nativo MPV também não conseguiu iniciar este conteúdo.',autoplay:'O sistema bloqueou o início automático. Clique em Reproduzir para tentar novamente.',network:'Falha de rede ao carregar o vídeo.',timeout:'O servidor demorou demais para iniciar a reprodução.',hls:'O manifesto HLS falhou ou contém um formato incompatível.',dash:'O manifesto DASH falhou ou contém um formato incompatível.',ts:'O fluxo MPEG-TS/FLV não pôde ser interpretado.',video:'O navegador não conseguiu decodificar este arquivo.'};
     return 'Não foi possível reproduzir este conteúdo. '+(reason[code]||'A reprodução foi interrompida ou não pôde iniciar.')+' Confira a conexão, o acesso à conta ou a compatibilidade do codec.';
   }
 
@@ -1052,7 +1058,7 @@
         if(!active())return;
         p.lastPlaybackError=reason;
         if(!done){done=true;removeListeners();reject(new Error(reason));}
-        else runtimeError(p,reason);
+        else if(p.started&&!p.stopped)runtimeError(p,reason);
       };
       const onPlaying=()=>{
         // 'playing' só confirma esta tentativa quando o novo recurso já entregou dados reais.
@@ -1061,7 +1067,7 @@
       };
       const onLoadStart=()=>{if(active())p.sourceLoadStarted=true;};
       const onLoadedMetadata=()=>{
-        if(!active()||!(Number(startAt)>5))return;
+        if(mode==='mpv'||!active()||!(Number(startAt)>5))return;
         const duration=Number(V.duration);
         if(!Number.isFinite(duration)||duration<=0)return;
         const target=Math.max(0,Math.min(Number(startAt),Math.max(0,duration-0.25)));
@@ -1086,7 +1092,28 @@
       V.addEventListener('loadstart',onLoadStart);
       V.addEventListener('loadedmetadata',onLoadedMetadata);
       try {
-        if (mode === 'hls') {
+        if (mode === 'mpv') {
+          p.engine='mpv';
+          V.setEngine('mpv');
+          void V.openNative(url,startAt).then(()=>{
+            if(!active())return;
+            const request=V.play();
+            if(request&&typeof request.catch==='function')request.catch(error=>{
+              if(!active()||!error||error.name==='AbortError')return;
+              const detail=V.nativeState.error;
+              fail(detail ? mediaErrorReason(detail) : 'codec');
+            });
+          }).catch(error=>{
+            if(!active())return;
+            p.nativePlaybackError=String(error&&error.message||error);
+            const text=p.nativePlaybackError;
+            const reason=/network|http|timeout|timed out|connection|download/i.test(text)?'network'
+              :/unsupported|not supported|unknown format|no decoder/i.test(text)?'unsupported'
+              :/codec|decoder|decod/i.test(text)?'codec':'native';
+            fail(reason);
+          });
+          return;
+        } else if (mode === 'hls') {
           if (!window.Hls || !window.Hls.isSupported()) {
             if (V.canPlayType('application/vnd.apple.mpegurl')) V.src=url;
             else return fail('nohls');
@@ -1145,13 +1172,25 @@
   }
 
   // Queda no meio da transmissão ao vivo: reconecta sozinho (até 3 vezes).
-  function runtimeError(p, reason = 'network') {
+  async function runtimeError(p, reason = 'network') {
     if (p !== pl || p.stopped || p.runtimeRecovering) return;
     if (p.kind === 'live') {
       if (p.reconnecting) return;
       if ((p.retries = (p.retries || 0) + 1) > 3) { $('pmsg').textContent = 'A transmissão caiu. Tente outro canal ou volte mais tarde.'; return; }
       p.reconnecting = true; $('pmsg').textContent = 'Reconectando…';
-      p.recoverTimer = setTimeout(() => { if (p === pl && !p.stopped) play(p.kind, p.item, p.episode, p.title, { list: p.list, idx: p.idx, retries: p.retries }); }, 1500);
+      p.recoverTimer = setTimeout(() => { if (isCurrentPlayback(p)) play(p.kind, p.item, p.episode, p.title, { list: p.list, idx: p.idx, retries: p.retries, forceMpv:p.engine==='mpv'||p.nativeTried }); }, 1500);
+      return;
+    }
+    if(p.engine!=='mpv'&&!p.nativeTried&&['codec','unsupported','video'].includes(reason)&&await V.nativeAvailable()){
+      if(!isCurrentPlayback(p))return;
+      p.nativeTried=true;
+      const time=Number.isFinite(V.currentTime)?Math.max(0,V.currentTime):((S.resume[p.rkey]||{}).t||0);
+      $('pmsg').textContent='Tentando motor nativo para recuperar a reprodução…';
+      $('ptop').classList.remove('idle');$('playerControls').classList.remove('idle');
+      const wasPaused=p.desiredPaused===true;
+      p.recoverTimer=setTimeout(()=>{
+        if(isCurrentPlayback(p))play(p.kind,p.item,p.episode,p.title,{list:p.list,idx:p.idx,returnToDetail:p.returnToDetail,returnSeason:p.returnSeason,returnEpisodeId:p.returnEpisodeId,seriesSeasons:p.seriesSeasons,startAt:time,runtimeRetries:0,pauseAfterRecovery:wasPaused,forceMpv:true});
+      },100);
       return;
     }
     const nextTry = (Number(p.runtimeRetries) || 0) + 1;
@@ -1169,7 +1208,7 @@
     clearTimeout(p.recoverTimer);
     p.recoverTimer = setTimeout(() => {
       if (!isCurrentPlayback(p)) return;
-      play(p.kind, p.item, p.episode, p.title, { list:p.list, idx:p.idx, returnToDetail:p.returnToDetail, returnSeason:p.returnSeason, returnEpisodeId:p.returnEpisodeId, seriesSeasons:p.seriesSeasons, startAt:time, runtimeRetries:nextTry, pauseAfterRecovery:p.desiredPaused===true });
+      play(p.kind, p.item, p.episode, p.title, { list:p.list, idx:p.idx, returnToDetail:p.returnToDetail, returnSeason:p.returnSeason, returnEpisodeId:p.returnEpisodeId, seriesSeasons:p.seriesSeasons, startAt:time, runtimeRetries:nextTry, pauseAfterRecovery:p.desiredPaused===true, forceMpv:p.engine==='mpv'||p.nativeTried });
     }, 650);
   }
   V.addEventListener('error', () => {
@@ -1186,7 +1225,7 @@
     const rkey = C.resumeKey(kind, item, episode);
     const list = opts.list || null;
     const idx = list ? list.findIndex((x) => C.itemId(x) === C.itemId(item)) : -1;
-    const p = (pl = { generation:playbackGeneration, attemptSeq:0, cancelAttempt:null, desiredPaused:opts.pauseAfterRecovery===true, kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, dash: null, stopped: false, lastPlaybackError: '', returnToDetail:!!opts.returnToDetail, returnSeason:opts.returnSeason||null, returnEpisodeId:opts.returnEpisodeId||'', seriesSeasons:Array.isArray(opts.seriesSeasons)?opts.seriesSeasons:null, nextEpisode:null, nextEpisodeResolved:false, nextEpisodeLoading:false, nextEpisodePromise:null, nextDismissed:false, nextAutoTriggered:false, runtimeRetries:Number(opts.runtimeRetries)||0, runtimeRecovering:false, recoverTimer:null });
+    const p = (pl = { generation:playbackGeneration, attemptSeq:0, cancelAttempt:null, desiredPaused:opts.pauseAfterRecovery===true, engine:opts.forceMpv?'mpv':'chromium', nativeTried:opts.forceMpv===true, nativePlaybackError:'', kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, dash: null, stopped: false, lastPlaybackError: '', returnToDetail:!!opts.returnToDetail, returnSeason:opts.returnSeason||null, returnEpisodeId:opts.returnEpisodeId||'', seriesSeasons:Array.isArray(opts.seriesSeasons)?opts.seriesSeasons:null, nextEpisode:null, nextEpisodeResolved:false, nextEpisodeLoading:false, nextEpisodePromise:null, nextDismissed:false, nextAutoTriggered:false, runtimeRetries:Number(opts.runtimeRetries)||0, runtimeRecovering:false, recoverTimer:null });
     $('player').classList.remove('hidden'); $('ptitle').textContent = title;
     $('pmsg').textContent = 'Carregando…'; $('pback').focus(); updatePlayerFav(); seekDragging=false;$('seek').value='0';$('qualityWrap').classList.add('hidden');$('quality').replaceChildren(new Option('Automática','-1'));updatePlayerUI();$('playerControls').classList.remove('idle');$('ptop').classList.remove('idle');
     $('pinfo').classList.add('hidden'); hideNextEpisodePrompt();
@@ -1195,17 +1234,46 @@
     if (!opts.retries) addHistory(kind, item).catch(() => {});
     if (kind === 'live') startEpg(p);
     const startAt = kind === 'live' ? 0 : (Number.isFinite(Number(opts.startAt)) ? Math.max(0, Number(opts.startAt)) : ((S.resume[rkey] || {}).t || 0));
-    for (const url of urls) {
-      if (p.stopped) return;
-      p.currentUrl = url;
-      cleanup(p); resetVideo();
-      try { await attempt(p, modeFor(kind, url), url, startAt); if (isCurrentPlayback(p)) { p.started = true; $('pmsg').textContent = ''; if (p.desiredPaused) V.pause(); bumpUi(); } return; }
-      catch (e) { /* tenta a próxima URL disponível */ }
+    async function tryEngine(engine) {
+      p.engine=engine;
+      V.setEngine(engine);
+      for (const url of urls) {
+        if (!isCurrentPlayback(p)) return false;
+        p.currentUrl=url;
+        cleanup(p);
+        resetVideo();
+        try {
+          await attempt(p,engine==='mpv'?'mpv':modeFor(kind,url),url,startAt);
+          if (!isCurrentPlayback(p)) return false;
+          p.started=true;
+          $('pmsg').textContent='';
+          if(p.desiredPaused)V.pause();
+          bumpUi();
+          return true;
+        } catch(error) {
+          if(!isCurrentPlayback(p))return false;
+          p.nativePlaybackError=engine==='mpv'?String(error&&error.message||error):p.nativePlaybackError;
+        }
+      }
+      return false;
     }
-    if (!isCurrentPlayback(p)) return;
-    cleanup(p); resetVideo();
-    if (kind !== 'live' && p.runtimeRetries > 0 && p.runtimeRetries < 2) { runtimeError(p, p.lastPlaybackError || 'network'); return; }
-    $('pmsg').textContent = playbackErrorMessage(p.lastPlaybackError);
+    let started=false;
+    if(opts.forceMpv)started=await tryEngine('mpv');
+    else started=await tryEngine('chromium');
+    if(!started&&!opts.forceMpv&&!p.stopped&&await V.nativeAvailable()){
+      p.nativeTried=true;
+      $('pmsg').textContent='Tentando motor nativo para ampliar a compatibilidade…';
+      started=await tryEngine('mpv');
+    }
+    if(started)return;
+    if(!isCurrentPlayback(p))return;
+    cleanup(p);
+    resetVideo();
+    if(kind!=='live'&&p.runtimeRetries>0&&p.runtimeRetries<2){runtimeError(p,p.lastPlaybackError||'network');return;}
+    const finalError=p.nativePlaybackError&&p.nativeTried
+      ? playbackErrorMessage('native')+' '+playbackErrorMessage(p.lastPlaybackError)
+      : playbackErrorMessage(p.lastPlaybackError);
+    $('pmsg').textContent=finalError;
     $('ptop').classList.remove('idle');
   }
 
@@ -1360,8 +1428,9 @@
       cleanup(previous);
       pl=null;
     } else playbackGeneration++;
-    // load() aborts pending browser operations. Any resulting events are now stale and ignored.
+    // Stop both engines so late native or Chromium events cannot leak into the next episode.
     resetVideo();
+    V.setEngine('chromium');
     hideNextEpisodePrompt();
   }
   function closePlayer() {
