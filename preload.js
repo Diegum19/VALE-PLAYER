@@ -1,5 +1,12 @@
 'use strict';
 const { contextBridge, ipcRenderer } = require('electron');
+try {
+  const { exposeMpvApi } = require('electron-mpv-video/preload');
+  exposeMpvApi();
+} catch (error) {
+  // Optional native engine; Chromium remains available if it cannot be exposed.
+  console.warn('Vela Player: API MPV indisponível.', error);
+}
 contextBridge.exposeInMainWorld('vela', {
   platform: 'desktop',
   api: (url) => ipcRenderer.invoke('api', url),
