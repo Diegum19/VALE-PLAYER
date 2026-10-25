@@ -3,7 +3,7 @@
   const C = window.VelaCore;
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-  const APP_VERSION = '1.1.2';
+  const APP_VERSION = '1.1.3';
 
   // ---- Adaptador de plataforma: no PC usa o Electron; em outras plataformas (TV) usa a web ----
   const P = window.vela || {
@@ -902,7 +902,7 @@
       ];
       videoDiagnostics.append(el('p','muted','Diagnóstico técnico (não inclui host, usuário, senha ou URL de transmissão).'));
       for(const [name,value] of checks) videoDiagnostics.append(el('p','diagnostic-row',name+': '+value));
-      diagnosticReport=checks.map(([name,value])=>name+': '+value).join('\\n');
+      diagnosticReport=checks.map(([name,value])=>name+': '+value).join('\n');
       const copy=el('button','ghost focusable','Copiar relatório');copy.type='button';
       copy.onclick=async()=>{
         try {
@@ -1199,7 +1199,7 @@
   async function runtimeError(p, reason = 'network') {
     if (p !== pl || p.stopped || p.runtimeRecovering) return;
     if (p.kind === 'live') {
-      if(p.engine!=='mpv'&&C.shouldUseNativeFallback(p.kind,reason,p.nativeTried,p.nativeFallbackBlocked)&&await V.nativeAvailable()){
+      if(p.engine!=='mpv'&&C.shouldUseNativeFallbackAfterRuntimeError(p.kind,reason,p.retries,p.nativeTried,p.nativeFallbackBlocked)&&await V.nativeAvailable()){
         if(!isCurrentPlayback(p)||p.nativeTried)return;
         p.nativeTried=true;
         const wasPaused=p.desiredPaused===true;
@@ -1216,7 +1216,7 @@
       p.recoverTimer = setTimeout(() => { if (isCurrentPlayback(p)) play(p.kind, p.item, p.episode, p.title, { list: p.list, idx: p.idx, retries: p.retries, forceMpv:p.engine==='mpv'||p.nativeTried }); }, 1500);
       return;
     }
-    if(p.engine!=='mpv'&&C.shouldUseNativeFallback(p.kind,reason,p.nativeTried,p.nativeFallbackBlocked)&&await V.nativeAvailable()){
+    if(p.engine!=='mpv'&&C.shouldUseNativeFallbackAfterRuntimeError(p.kind,reason,p.runtimeRetries,p.nativeTried,p.nativeFallbackBlocked)&&await V.nativeAvailable()){
       if(!isCurrentPlayback(p)||p.nativeTried)return;
       p.nativeTried=true;
       const time=Number.isFinite(V.currentTime)?Math.max(0,V.currentTime):((S.resume[p.rkey]||{}).t||0);
@@ -1297,7 +1297,9 @@
     let started=false;
     if(opts.forceMpv)started=await tryEngine('mpv');
     else started=await tryEngine('chromium');
-    if(!started&&!opts.forceMpv&&!p.stopped&&C.shouldUseNativeFallback(kind,p.lastPlaybackError,p.nativeTried,p.nativeFallbackBlocked)&&await V.nativeAvailable()){
+    const networkRetryDeferred=['network','timeout'].includes(p.lastPlaybackError)&&
+      ((kind==='live'&&Number(opts.retries||0)<3)||(kind!=='live'&&Number(opts.runtimeRetries||0)<2));
+    if(!started&&!opts.forceMpv&&!p.stopped&&!networkRetryDeferred&&C.shouldUseNativeFallback(kind,p.lastPlaybackError,p.nativeTried,p.nativeFallbackBlocked)&&await V.nativeAvailable()){
       p.nativeTried=true;
       $('pmsg').textContent='Tentando motor nativo para ampliar a compatibilidade…';
       started=await tryEngine('mpv');
@@ -1306,6 +1308,7 @@
     if(!isCurrentPlayback(p))return;
     cleanup(p);
     resetVideo();
+    if(kind==='live'&&['network','timeout'].includes(p.lastPlaybackError)&&Number(opts.retries||0)<3){runtimeError(p,p.lastPlaybackError);return;}
     if(kind!=='live'&&p.runtimeRetries>0&&p.runtimeRetries<2){runtimeError(p,p.lastPlaybackError||'network');return;}
     const finalError=p.nativePlaybackError&&p.nativeTried
       ? playbackErrorMessage('native')+' '+playbackErrorMessage(p.lastPlaybackError)

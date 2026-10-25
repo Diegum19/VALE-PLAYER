@@ -127,7 +127,7 @@ function createHarness(failForMode) {
   await fallback.window.VelaMediaAdapter.openNative('https://example.invalid/video.mkv');
   assert.deepEqual(fallback.modes, ['shared-texture', 'webgl', 'canvas2d']);
   assert.equal(fallback.window.VelaMediaAdapter.nativeRenderer, 'canvas2d');
-  process.stdout.write('PASS media adapter: shared-texture -> WebGL -> Canvas 2D\\n');
+  process.stdout.write('PASS media adapter: shared-texture -> WebGL -> Canvas 2D\n');
 
   const networkFailure = createHarness(() => 'HTTP timeout while opening media URL');
   await assert.rejects(
@@ -135,14 +135,14 @@ function createHarness(failForMode) {
     /HTTP timeout/
   );
   assert.deepEqual(networkFailure.modes, ['shared-texture']);
-  process.stdout.write('PASS media adapter: network failure does not masquerade as a renderer failure\\n');
+  process.stdout.write('PASS media adapter: network failure does not masquerade as a renderer failure\n');
   const codecFailure = createHarness(() => 'Unsupported codec: no decoder found');
   await assert.rejects(
     codecFailure.window.VelaMediaAdapter.openNative('https://example.invalid/video.mkv'),
     /Unsupported codec/
   );
   assert.deepEqual(codecFailure.modes, ['shared-texture']);
-  process.stdout.write('PASS media adapter: codec errors do not trigger renderer retries\\n');
+  process.stdout.write('PASS media adapter: codec errors do not trigger renderer retries\n');
 
   const redaction = createHarness(() => '');
   await redaction.window.VelaMediaAdapter.openNative('https://example.invalid/video.mkv');
@@ -152,8 +152,8 @@ function createHarness(failForMode) {
   });
   const errorText = redaction.window.VelaMediaAdapter.nativeState.error.message;
   assert.match(errorText, /URL de mídia ocultada/);
-  assert.doesNotMatch(errorText, /stream\\.example|secret-password|private-token|customer/);
-  process.stdout.write('PASS media adapter: native errors redact stream credentials and URLs\\n');
+  assert.doesNotMatch(errorText, /stream\.example|secret-password|private-token|customer/);
+  process.stdout.write('PASS media adapter: native errors redact stream credentials and URLs\n');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
