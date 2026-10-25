@@ -136,6 +136,24 @@ function createHarness(failForMode) {
   );
   assert.deepEqual(networkFailure.modes, ['shared-texture']);
   process.stdout.write('PASS media adapter: network failure does not masquerade as a renderer failure\\n');
+  const codecFailure = createHarness(() => 'Unsupported codec: no decoder found');
+  await assert.rejects(
+    codecFailure.window.VelaMediaAdapter.openNative('https://example.invalid/video.mkv'),
+    /Unsupported codec/
+  );
+  assert.deepEqual(codecFailure.modes, ['shared-texture']);
+  process.stdout.write('PASS media adapter: codec errors do not trigger renderer retries\\n');
+
+  const redaction = createHarness(() => '');
+  await redaction.window.VelaMediaAdapter.openNative('https://example.invalid/video.mkv');
+  redaction.elements[0].dispatchEvent({
+    type: 'mpv-error',
+    detail: 'HTTP 401 opening https://stream.example/live/customer/secret-password/123.m3u8?token=private-token',
+  });
+  const errorText = redaction.window.VelaMediaAdapter.nativeState.error.message;
+  assert.match(errorText, /URL de mídia ocultada/);
+  assert.doesNotMatch(errorText, /stream\\.example|secret-password|private-token|customer/);
+  process.stdout.write('PASS media adapter: native errors redact stream credentials and URLs\\n');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;

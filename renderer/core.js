@@ -53,6 +53,17 @@
     return 'native';
   }
 
+  // Fallback nativo limitado a erros potencialmente recuperáveis (sem repetir tentativas).
+  const NATIVE_FALLBACK_REASONS = new Set([
+    'codec', 'unsupported', 'video', 'network', 'timeout',
+    'hls', 'dash', 'ts', 'nohls', 'nompegts',
+  ]);
+  function shouldUseNativeFallback(kind, reason, alreadyTried = false, blocked = false) {
+    return ['live', 'movie', 'series'].includes(String(kind || '')) &&
+      NATIVE_FALLBACK_REASONS.has(String(reason || '').toLowerCase()) &&
+      alreadyTried !== true && blocked !== true;
+  }
+
   // Agrupa variantes pela resolução e mantém a variante de maior bitrate em cada resolução.
   function qualityChoices(levels) {
     const best = new Map();
@@ -233,7 +244,7 @@
   function resumeKey(kind, item, ep) { return kind + ':' + itemId(item) + (ep ? ':' + (ep.id ?? ep.stream_id) : ''); }
   function hhmm(sec) { const d = new Date(sec * 1000); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
 
-  const api = { itemPosters, decodeB64, epgList, epgNowNext, sortItems, isAdultName, fmtTime, resumeKey, hhmm, normalizeHost, apiUrl, streamUrls, itemId, itemName, itemPoster, errorMessage, checkLogin, filterItems, filterByMetadata, itemGenres, itemYear, profileKey, seasonsOf, isHttpUrl, mediaMode, qualityChoices };
+  const api = { itemPosters, decodeB64, epgList, epgNowNext, sortItems, isAdultName, fmtTime, resumeKey, hhmm, normalizeHost, apiUrl, streamUrls, itemId, itemName, itemPoster, errorMessage, checkLogin, filterItems, filterByMetadata, itemGenres, itemYear, profileKey, seasonsOf, isHttpUrl, mediaMode, shouldUseNativeFallback, qualityChoices };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VelaCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);

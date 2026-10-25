@@ -22,6 +22,13 @@ assert.strictEqual(C.mediaMode('movie', 'https://cdn.example/movie/file.flv?toke
 assert.strictEqual(C.mediaMode('movie', 'https://cdn.example/movie/file.ts?token=abc'), 'ts');
 assert.strictEqual(C.mediaMode('live', 'https://cdn.example/live/file.m2ts'), 'ts');
 assert.strictEqual(C.mediaMode('movie', 'https://cdn.example/movie/file.mkv'), 'native');
+assert.strictEqual(C.shouldUseNativeFallback('live', 'network'), true);
+assert.strictEqual(C.shouldUseNativeFallback('series', 'codec'), true);
+assert.strictEqual(C.shouldUseNativeFallback('movie', 'timeout'), true);
+assert.strictEqual(C.shouldUseNativeFallback('series', 'autoplay'), false);
+assert.strictEqual(C.shouldUseNativeFallback('live', 'network', true, false), false);
+assert.strictEqual(C.shouldUseNativeFallback('movie', 'codec', false, true), false);
+assert.strictEqual(C.shouldUseNativeFallback('settings', 'network'), false);
 assert.deepStrictEqual(C.qualityChoices([{ height: 720, width: 1280, bitrate: 1800000 }, { height: 1080, width: 1920, bitrate: 5000000 }, { height: 720, width: 1280, bitrate: 2800000 }]).map(q => [q.index, q.label]), [[1, '1080p · 5.0 Mbps'], [2, '720p · 2.8 Mbps']]);
 assert.deepStrictEqual(C.streamUrls('h.com', 'u', 'p', 'live', { stream_id: 1, direct_source: 'javascript:alert(1)' })[0].startsWith('http://h.com/live/'), true);
 

@@ -24,11 +24,18 @@
   htmlVideo.playsInline = true;
 
   function isNativeActive() { return engine === 'mpv'; }
+  function safeErrorMessage(message) {
+    return String(message || 'Erro no motor nativo MPV')
+      .replace(/https?:\/\/[^\s"'<>]+/gi, '[URL de mídia ocultada]')
+      .replace(/\b(username|user|password|pass|token|authorization)\s*([=:])\s*([^\s&;,]+)/gi, '$1$2[oculto]')
+      .replace(/([?&](?:username|user|password|pass|token|authorization|auth)=)[^&\s]+/gi, '$1[oculto]')
+      .slice(0, 400);
+  }
   function mediaError(message) {
-    const text = String(message || 'Erro no motor nativo MPV');
-    const code = /network|http|timeout|timed out|connection|download|demux/i.test(text) ? 2
-      : /unsupported|not supported|unknown format|no decoder/i.test(text) ? 4 : 3;
-    state.error = { code, message: text };
+    const original = String(message || 'Erro no motor nativo MPV');
+    const code = /network|http|timeout|timed out|connection|download|demux/i.test(original) ? 2
+      : /unsupported|not supported|unknown format|no decoder/i.test(original) ? 4 : 3;
+    state.error = { code, message: safeErrorMessage(original) };
     return state.error;
   }
   function dispatchMedia(type) {
@@ -239,7 +246,7 @@
           await destroyNativeVideo();
           throw new DOMException('Aborted', 'AbortError');
         }
-        const rendererFailure = /webgpu|shared.?texture|renderer|render.?context|wgl|d3d11|opengl|webgl2?|canvas.?2d|2d.?context|graphics context|render target|context lost/i.test(text);
+        const rendererFailure = /webgpu|shared[\s_-]?texture|webgl(?:2)?|canvas[\s_-]?2d|2d[\s_-]?context|wgl|d3d11|opengl|graphics context|render target|context lost|failed to (?:initialize|create) (?:the )?(?:native )?(?:video )?(?:renderer|render context)|(?:renderer|render context).{0,40}(?:failed|error|unavailable|initializ|context)|(?:initializ|creat).{0,30}(?:renderer|render context)/i.test(text);
         const hasAnotherRenderer = modes.indexOf(mode) >= 0 && modes.indexOf(mode) < modes.length - 1;
         if (!rendererFailure || !hasAnotherRenderer) throw lastError;
         await destroyNativeVideo();

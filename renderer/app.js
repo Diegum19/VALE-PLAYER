@@ -3,7 +3,7 @@
   const C = window.VelaCore;
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-  const APP_VERSION = '1.1.1';
+  const APP_VERSION = '1.1.2';
 
   // ---- Adaptador de plataforma: no PC usa o Electron; em outras plataformas (TV) usa a web ----
   const P = window.vela || {
@@ -1039,7 +1039,7 @@
   function blockNativeFallbackForHttpStatus(p, status) {
     const code=Number(status);
     // Erros de acesso ou URL ausente não são resolvidos trocando o decodificador.
-    if([401,404,410].includes(code))p.nativeFallbackBlocked=true;
+    if([401,403,404,410,429].includes(code))p.nativeFallbackBlocked=true;
   }
 
   // Cada tentativa tem identidade própria. Eventos atrasados de uma fonte anterior são ignorados.
@@ -1199,13 +1199,24 @@
   async function runtimeError(p, reason = 'network') {
     if (p !== pl || p.stopped || p.runtimeRecovering) return;
     if (p.kind === 'live') {
+      if(p.engine!=='mpv'&&C.shouldUseNativeFallback(p.kind,reason,p.nativeTried,p.nativeFallbackBlocked)&&await V.nativeAvailable()){
+        if(!isCurrentPlayback(p)||p.nativeTried)return;
+        p.nativeTried=true;
+        const wasPaused=p.desiredPaused===true;
+        $('pmsg').textContent='Tentando motor nativo para recuperar o canal…';
+        $('ptop').classList.remove('idle');$('playerControls').classList.remove('idle');
+        p.recoverTimer=setTimeout(()=>{
+          if(isCurrentPlayback(p))play(p.kind,p.item,p.episode,p.title,{list:p.list,idx:p.idx,retries:0,pauseAfterRecovery:wasPaused,forceMpv:true});
+        },100);
+        return;
+      }
       if (p.reconnecting) return;
       if ((p.retries = (p.retries || 0) + 1) > 3) { $('pmsg').textContent = 'A transmissão caiu. Tente outro canal ou volte mais tarde.'; return; }
       p.reconnecting = true; $('pmsg').textContent = 'Reconectando…';
       p.recoverTimer = setTimeout(() => { if (isCurrentPlayback(p)) play(p.kind, p.item, p.episode, p.title, { list: p.list, idx: p.idx, retries: p.retries, forceMpv:p.engine==='mpv'||p.nativeTried }); }, 1500);
       return;
     }
-    if(p.engine!=='mpv'&&!p.nativeTried&&!p.nativeFallbackBlocked&&['codec','unsupported','video','network','timeout'].includes(reason)&&await V.nativeAvailable()){
+    if(p.engine!=='mpv'&&C.shouldUseNativeFallback(p.kind,reason,p.nativeTried,p.nativeFallbackBlocked)&&await V.nativeAvailable()){
       if(!isCurrentPlayback(p)||p.nativeTried)return;
       p.nativeTried=true;
       const time=Number.isFinite(V.currentTime)?Math.max(0,V.currentTime):((S.resume[p.rkey]||{}).t||0);
@@ -1263,6 +1274,8 @@
       V.setEngine(engine);
       for (const url of urls) {
         if (!isCurrentPlayback(p)) return false;
+        // Decide from the latest candidate URL, so a 404 on HLS doesn't block a valid TS alternative.
+        p.nativeFallbackBlocked=false;
         p.currentUrl=url;
         cleanup(p);
         resetVideo();
@@ -1284,8 +1297,7 @@
     let started=false;
     if(opts.forceMpv)started=await tryEngine('mpv');
     else started=await tryEngine('chromium');
-    const nativeFallbackReasons=['codec','unsupported','video','hls','dash','ts','nohls','nompegts','network','timeout'];
-    if(!started&&kind!=='live'&&!opts.forceMpv&&!p.stopped&&!p.nativeFallbackBlocked&&nativeFallbackReasons.includes(p.lastPlaybackError)&&await V.nativeAvailable()){
+    if(!started&&!opts.forceMpv&&!p.stopped&&C.shouldUseNativeFallback(kind,p.lastPlaybackError,p.nativeTried,p.nativeFallbackBlocked)&&await V.nativeAvailable()){
       p.nativeTried=true;
       $('pmsg').textContent='Tentando motor nativo para ampliar a compatibilidade…';
       started=await tryEngine('mpv');
