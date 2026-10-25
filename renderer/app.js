@@ -928,8 +928,9 @@
   const V=$('video');V.controls=false;V.preload='auto';V.playsInline=true;let pl=null,playbackGeneration=0,hideTimer=null,epgTimer=null,numBuf='',numTimer=null,seekDragging=false,playerFullscreen=false;
   function isCurrentPlayback(p){return !!p&&pl===p&&!p.stopped&&p.generation===playbackGeneration;}
   function isCurrentNativeSource(p){
-    if(!isCurrentPlayback(p)||p.hls||p.ts||p.dash||!p.currentUrl||!V.currentSrc)return false;
-    try{return new URL(V.currentSrc,document.baseURI).href===new URL(p.currentUrl,document.baseURI).href;}catch{return false;}
+    // currentSrc may be a CDN URL after a legitimate HTTP redirect, so don't require URL equality.
+    // load()/reset clears currentSrc; a non-empty currentSrc here means the browser selected a source.
+    return !!(isCurrentPlayback(p)&&!p.hls&&!p.ts&&!p.dash&&p.currentUrl&&V.currentSrc);
   }
   function togglePlayerFullscreen(force){playerFullscreen=typeof force==='boolean'?force:!playerFullscreen;P.fullscreen(playerFullscreen);}
   function refreshTimeline(){
