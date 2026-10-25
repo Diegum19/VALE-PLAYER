@@ -61,6 +61,13 @@ if (hasSingleInstanceLock) app.on('second-instance', () => { if (win) { if (win.
 app.whenReady().then(async () => {
   if (!hasSingleInstanceLock) return;
   process.env.MPV_HWDEC = process.env.MPV_HWDEC || 'auto-safe';
+  if (process.platform === 'win32') {
+    // Windows must be able to locate libmpv and its companion DLLs beside the unpacked native addon.
+    const appRoot = app.getAppPath();
+    const packageRoot = appRoot.toLowerCase().endsWith('.asar') ? appRoot + '.unpacked' : appRoot;
+    const mpvRuntimeDir = path.join(packageRoot, 'node_modules', 'electron-mpv-video', 'native', 'mpv-addon', 'build', 'Release');
+    process.env.PATH = mpvRuntimeDir + path.delimiter + (process.env.PATH || '');
+  }
   try {
     const { createMpvMain } = await import('electron-mpv-video/main');
     mpvMainService = createMpvMain();
