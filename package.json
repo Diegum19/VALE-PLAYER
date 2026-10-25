@@ -1,8 +1,8 @@
 {
   "name": "vela-player",
   "productName": "Vela Player",
-  "version": "1.0.1",
-  "description": "Vela Player 1.0.1 - reprodução mais resiliente, proteção contra eventos atrasados e recuperação de mídia",
+  "version": "1.1.0",
+  "description": "Vela Player 1.1.0 - motor nativo MPV para ampliar a compatibilidade de vídeo",
   "main": "main.js",
   "author": "Vela Player",
   "license": "UNLICENSED",
@@ -16,7 +16,8 @@
   "dependencies": {
     "hls.js": "1.7.3",
     "mpegts.js": "1.8.2",
-    "dashjs": "5.2.1"
+    "dashjs": "5.2.1",
+    "electron-mpv-video": "0.1.1"
   },
   "devDependencies": {
     "electron": "45.0.0",
@@ -57,6 +58,10 @@
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false,
       "artifactName": "Instalar-Vela-Player.${ext}"
-    }
+    },
+    "asarUnpack": [
+      "node_modules/electron-mpv-video/native/mpv-addon/build/Release/*.node",
+      "node_modules/electron-mpv-video/native/mpv-addon/build/Release/*.dll"
+    ]
   }
 }
