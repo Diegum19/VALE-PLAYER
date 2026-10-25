@@ -3,7 +3,7 @@
   const C = window.VelaCore;
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-  const APP_VERSION = '1.1.0';
+  const APP_VERSION = '1.1.1';
 
   // ---- Adaptador de plataforma: no PC usa o Electron; em outras plataformas (TV) usa a web ----
   const P = window.vela || {
@@ -1036,6 +1036,12 @@
     return 'video';
   }
 
+  function blockNativeFallbackForHttpStatus(p, status) {
+    const code=Number(status);
+    // Erros de acesso ou URL ausente não são resolvidos trocando o decodificador.
+    if([401,404,410].includes(code))p.nativeFallbackBlocked=true;
+  }
+
   // Cada tentativa tem identidade própria. Eventos atrasados de uma fonte anterior são ignorados.
   function attempt(p, mode, url, startAt) {
     return new Promise((resolve, reject) => {
@@ -1132,6 +1138,9 @@
             hls.on(window.Hls.Events.MANIFEST_PARSED,()=>{if(active())populateQualityOptions(p);});
             hls.on(window.Hls.Events.ERROR,(_e,d)=>{
               if(!active()||!d||!d.fatal)return;
+              const response=d.response||{};
+              const network=d.networkDetails||{};
+              blockNativeFallbackForHttpStatus(p,response.code||response.status||network.status||network.statusCode);
               // Uma recuperação limitada para falhas de mídia/rede, depois entrega o erro real.
               if(d.type===window.Hls.ErrorTypes.MEDIA_ERROR&&hlsMediaRecoveries<1&&typeof hls.recoverMediaError==='function'){
                 hlsMediaRecoveries++;
@@ -1152,6 +1161,8 @@
           const ts=p.ts=window.mpegts.createPlayer({type:mode==='flv'?'flv':'mpegts',isLive:kind==='live',url},{enableWorker:true,enableWorkerForMSE:true,enableStashBuffer:kind==='live',stashInitialSize:384*1024,liveBufferLatencyChasing:kind==='live'});
           ts.on(window.mpegts.Events.ERROR,(type,detail,info)=>{
             if(!active())return;
+            const response=info&&info.response;
+            blockNativeFallbackForHttpStatus(p,info&&(info.status||info.statusCode||info.httpStatus||info.responseCode||(response&&(response.status||response.code))));
             const text=[type,detail,info&&typeof info==='object'?(info.msg||info.code||''):info].map(x=>String(x||'')).join(' ');
             const reason=/codec|decode|unsupported|media.?codec/i.test(text)?'codec':/network|http|loader|timeout/i.test(text)?'network':'ts';
             fail(reason);
@@ -1163,6 +1174,9 @@
           dash.on(window.dashjs.MediaPlayer.events.STREAM_INITIALIZED,()=>{if(active())populateQualityOptions(p);});
           dash.on(window.dashjs.MediaPlayer.events.ERROR,(event)=>{
             if(!active())return;
+            const response=event&&event.response;
+            const err=event&&event.error;
+            blockNativeFallbackForHttpStatus(p,(response&&(response.status||response.statusCode||response.code))||(err&&(err.status||err.statusCode||(err.response&&(err.response.status||err.response.code)))));
             const detail=event&&event.error?String(event.error.message||event.error.code||''):String(event&&event.event||'');
             const reason=/network|http|manifest|fragment|loader/i.test(detail)?'network':/codec|decode|unsupported|sourcebuffer/i.test(detail)?'codec':'dash';
             fail(reason);
@@ -1191,7 +1205,7 @@
       p.recoverTimer = setTimeout(() => { if (isCurrentPlayback(p)) play(p.kind, p.item, p.episode, p.title, { list: p.list, idx: p.idx, retries: p.retries, forceMpv:p.engine==='mpv'||p.nativeTried }); }, 1500);
       return;
     }
-    if(p.engine!=='mpv'&&!p.nativeTried&&['codec','unsupported','video'].includes(reason)&&await V.nativeAvailable()){
+    if(p.engine!=='mpv'&&!p.nativeTried&&!p.nativeFallbackBlocked&&['codec','unsupported','video','network','timeout'].includes(reason)&&await V.nativeAvailable()){
       if(!isCurrentPlayback(p)||p.nativeTried)return;
       p.nativeTried=true;
       const time=Number.isFinite(V.currentTime)?Math.max(0,V.currentTime):((S.resume[p.rkey]||{}).t||0);
@@ -1235,7 +1249,7 @@
     const rkey = C.resumeKey(kind, item, episode);
     const list = opts.list || null;
     const idx = list ? list.findIndex((x) => C.itemId(x) === C.itemId(item)) : -1;
-    const p = (pl = { generation:playbackGeneration, attemptSeq:0, cancelAttempt:null, desiredPaused:opts.pauseAfterRecovery===true, engine:opts.forceMpv?'mpv':'chromium', nativeTried:opts.forceMpv===true, nativePlaybackError:'', kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, dash: null, stopped: false, lastPlaybackError: '', returnToDetail:!!opts.returnToDetail, returnSeason:opts.returnSeason||null, returnEpisodeId:opts.returnEpisodeId||'', seriesSeasons:Array.isArray(opts.seriesSeasons)?opts.seriesSeasons:null, nextEpisode:null, nextEpisodeResolved:false, nextEpisodeLoading:false, nextEpisodePromise:null, nextDismissed:false, nextAutoTriggered:false, runtimeRetries:Number(opts.runtimeRetries)||0, runtimeRecovering:false, recoverTimer:null });
+    const p = (pl = { generation:playbackGeneration, attemptSeq:0, cancelAttempt:null, desiredPaused:opts.pauseAfterRecovery===true, engine:opts.forceMpv?'mpv':'chromium', nativeTried:opts.forceMpv===true, nativePlaybackError:'', nativeFallbackBlocked:false, kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, dash: null, stopped: false, lastPlaybackError: '', returnToDetail:!!opts.returnToDetail, returnSeason:opts.returnSeason||null, returnEpisodeId:opts.returnEpisodeId||'', seriesSeasons:Array.isArray(opts.seriesSeasons)?opts.seriesSeasons:null, nextEpisode:null, nextEpisodeResolved:false, nextEpisodeLoading:false, nextEpisodePromise:null, nextDismissed:false, nextAutoTriggered:false, runtimeRetries:Number(opts.runtimeRetries)||0, runtimeRecovering:false, recoverTimer:null });
     $('player').classList.remove('hidden'); $('ptitle').textContent = title;
     $('pmsg').textContent = 'Carregando…'; $('pback').focus(); updatePlayerFav(); seekDragging=false;$('seek').value='0';$('qualityWrap').classList.add('hidden');$('quality').replaceChildren(new Option('Automática','-1'));updatePlayerUI();$('playerControls').classList.remove('idle');$('ptop').classList.remove('idle');
     $('pinfo').classList.add('hidden'); hideNextEpisodePrompt();
@@ -1270,8 +1284,8 @@
     let started=false;
     if(opts.forceMpv)started=await tryEngine('mpv');
     else started=await tryEngine('chromium');
-    const nativeFallbackReasons=['codec','unsupported','video','hls','dash','ts','nohls','nompegts'];
-    if(!started&&!opts.forceMpv&&!p.stopped&&nativeFallbackReasons.includes(p.lastPlaybackError)&&await V.nativeAvailable()){
+    const nativeFallbackReasons=['codec','unsupported','video','hls','dash','ts','nohls','nompegts','network','timeout'];
+    if(!started&&kind!=='live'&&!opts.forceMpv&&!p.stopped&&!p.nativeFallbackBlocked&&nativeFallbackReasons.includes(p.lastPlaybackError)&&await V.nativeAvailable()){
       p.nativeTried=true;
       $('pmsg').textContent='Tentando motor nativo para ampliar a compatibilidade…';
       started=await tryEngine('mpv');

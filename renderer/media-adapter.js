@@ -201,7 +201,8 @@
   }
 
   async function openNative(url, startAt = 0, signal) {
-    const modes = ['shared-texture', 'webgl'];
+    // Fallbacks de renderização: GPU compartilhada -> WebGL -> Canvas 2D por software.
+    const modes = ['shared-texture', 'webgl', 'canvas2d'];
     let lastError = null;
     for (const mode of modes) {
       if (signal && signal.aborted) throw new DOMException('Aborted', 'AbortError');
@@ -238,8 +239,9 @@
           await destroyNativeVideo();
           throw new DOMException('Aborted', 'AbortError');
         }
-        const rendererFailure = /webgpu|shared.?texture|renderer|render.?context|wgl|d3d11|opengl|graphics context|render target/i.test(text);
-        if (mode !== 'shared-texture' || !rendererFailure) throw lastError;
+        const rendererFailure = /webgpu|shared.?texture|renderer|render.?context|wgl|d3d11|opengl|webgl2?|canvas.?2d|2d.?context|graphics context|render target|context lost/i.test(text);
+        const hasAnotherRenderer = modes.indexOf(mode) >= 0 && modes.indexOf(mode) < modes.length - 1;
+        if (!rendererFailure || !hasAnotherRenderer) throw lastError;
         await destroyNativeVideo();
       }
     }

@@ -1,4 +1,4 @@
-# Vela Player 1.1.0 (PC / Windows 10-11 64 bits)
+# Vela Player 1.1.1 (PC / Windows 10-11 64 bits)
 
 App de PC com **reprodutor embutido**: o cliente baixa **um único arquivo**
 (`Instalar-Vela-Player.exe`), dá dois cliques e abre pelo atalho. Sem CMD, sem ZIP,
@@ -28,6 +28,12 @@ O build usa Electron 45, cujo suporte oficial é Windows 10 ou posterior, em arq
 1. Crie um repositório **privado** no GitHub e envie esta pasta inteira.
 2. Aba **Actions → Gerar instalador Windows → Run workflow**.
 3. Baixe `Instalar-Vela-Player.exe` em *Artifacts* no fluxo concluído.
+
+## Novidades da 1.1.1
+- **Terceira via de renderização nativa:** após falhas gráficas identificadas, o MPV tenta superfícies compartilhadas, WebGL e Canvas 2D; erros de rede/codec não são tratados como falhas gráficas.
+- **Fallback de rede em filmes e séries:** quando o Chromium falha por rede/tempo esgotado, o aplicativo pode tentar o MPV uma vez, preservando as proteções contra repetição infinita.
+- **Respostas HTTP tratadas com cautela:** falhas HTTP 401, 404 e 410 não acionam uma tentativa extra de decodificação, pois normalmente indicam acesso inválido ou URL ausente/expirada.
+- **Validação:** a compilação automatizada testa a integração nativa e um vídeo WebM de exemplo; ainda é necessário verificar os fluxos e codecs específicos do servidor de cada cliente.
 
 ## Novidades da 1.1.0
 - **Motor nativo MPV/libmpv:** quando o Chromium falha ao iniciar um filme ou episódio, o aplicativo tenta automaticamente o motor nativo dentro do mesmo player.
