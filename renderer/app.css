@@ -508,7 +508,7 @@ header #count{font-size:12px;font-weight:650;color:#bdbdbd}
 #detail .close:hover{transform:rotate(3deg);background:#2b2b2b}
 .dhead img{transition:filter 180ms ease,box-shadow 180ms ease}
 .dhead h2{overflow-wrap:anywhere}
-#dmeta{display:flex;flex-wrap:wrap;gap:4px 8px}
+#dmeta{overflow-wrap:anywhere;line-height:1.8}
 #dplot{white-space:pre-line}
 #dplay,#drestart,#dfav{min-height:43px;font-weight:800;transition:transform 150ms ease,background 150ms ease,border-color 150ms ease}
 #dplay:active,#drestart:active,#dfav:active{transform:scale(.985)}
@@ -538,8 +538,8 @@ header #count{font-size:12px;font-weight:650;color:#bdbdbd}
 #pmsg{max-width:min(760px,calc(100vw - 28px));margin-inline:auto;line-height:1.55;text-wrap:pretty}
 #playerControls{padding-bottom:max(26px,env(safe-area-inset-bottom))}
 #seekArea{gap:8px}
-#seek.seek-slider{display:block;width:100%;height:5px;margin:9px 0 10px;border:0;border-radius:999px;outline:none;background:linear-gradient(90deg,#e50914,#e50914);accent-color:#e50914;cursor:pointer;appearance:none;-webkit-appearance:none}
-#seek.seek-slider::-webkit-slider-runnable-track{height:5px;border-radius:999px;background:linear-gradient(90deg,#e50914,#e50914)}
+#seek.seek-slider{display:block;width:100%;height:5px;margin:9px 0 10px;border:0;border-radius:999px;outline:none;background:linear-gradient(90deg,#e50914 0%,#e50914 var(--played,0%),#6b6b6b var(--played,0%),#6b6b6b var(--buffered,0%),#3f3f3f var(--buffered,0%),#3f3f3f 100%);accent-color:#e50914;cursor:pointer;appearance:none;-webkit-appearance:none}
+#seek.seek-slider::-webkit-slider-runnable-track{height:5px;border-radius:999px;background:linear-gradient(90deg,#e50914 0%,#e50914 var(--played,0%),#6b6b6b var(--played,0%),#6b6b6b var(--buffered,0%),#3f3f3f var(--buffered,0%),#3f3f3f 100%)}
 #seek.seek-slider::-webkit-slider-thumb{width:13px;height:13px;margin-top:-4px;border:2px solid #fff;border-radius:50%;background:#e50914;appearance:none;-webkit-appearance:none;box-shadow:0 1px 7px #0009;transition:transform 120ms ease}
 #seek.seek-slider::-moz-range-track{height:5px;border-radius:999px;background:#555}
 #seek.seek-slider::-moz-range-progress{height:5px;border-radius:999px;background:#e50914}
