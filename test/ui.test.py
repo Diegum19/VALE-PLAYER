@@ -31,7 +31,7 @@ try:
         check(hero['maxWidth'] == 'none' and hero['width'] >= hero['parentWidth'] - 2, 'destaque do PC ocupa toda a largura, sem corte de 800px')
         check(pg.locator('.home-shortcut').count() == 6, 'atalhos de navegação rápida renderizados, incluindo histórico e busca')
         pg.click('#home .home-shortcut:has-text("Histórico")')
-        check(not pg.is_hidden('#grid') and not pg.is_hidden('#state') and 'Seu histórico está vazio' in pg.inner_text('#state'), 'atalho Histórico abre uma tela vazia com ação para explorar')
+        check(pg.locator('#grid').evaluate("(e) => !e.classList.contains('hidden')") and not pg.is_hidden('#state') and 'Seu histórico está vazio' in pg.inner_text('#state'), 'atalho Histórico abre uma tela vazia com ação para explorar')
         pg.click('#nav button[data-tab=home]'); pg.wait_for_selector('#home')
         pg.click('#settingsBtn')
         check(pg.locator('#nextCountdownSetting').input_value() == '10', 'contagem automática padrão de 10 segundos')
