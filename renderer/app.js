@@ -655,12 +655,9 @@
       heading.appendChild(hint);
       sec.appendChild(heading);
       const row = el('div', 'hrow');
-      row.setAttribute('role','list');
+      row.setAttribute('role','group');
       row.setAttribute('aria-label', title);
-      nodes.forEach((n) => {
-        n.setAttribute('role','listitem');
-        row.appendChild(n);
-      });
+      nodes.forEach((n) => row.appendChild(n));
       sec.appendChild(row);
       home.appendChild(sec);
     };

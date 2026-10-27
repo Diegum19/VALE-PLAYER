@@ -14,7 +14,7 @@ Estas alterações são implementadas no código do aplicativo. A lista agrupa a
 9. Os botões de seção têm rótulos acessíveis.
 10. Os botões de seção informam o destino em tooltip.
 11. As faixas horizontais são nomeadas para leitores de tela.
-12. Os itens das faixas declaram sua função de lista.
+12. As faixas têm agrupamento e rótulo acessível sem remover o papel de botão dos cartões.
 13. A navegação rápida usa áreas de clique mais consistentes.
 14. O contador das faixas mostra quantos itens existem no conjunto.
 15. O botão Explorar permanece visível sem depender de hover.
