@@ -1,8 +1,8 @@
 {
   "name": "vela-player",
   "productName": "Vela Player",
-  "version": "1.1.4",
-  "description": "Vela Player 1.1.4 - política de recuperação testada e diagnóstico seguro",
+  "version": "1.2.0",
+  "description": "Vela Player 1.2.0 - navegação acessível, catálogo refinado e player aprimorado",
   "main": "main.js",
   "author": "Vela Player",
   "license": "UNLICENSED",

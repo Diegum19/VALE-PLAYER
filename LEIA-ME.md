@@ -1,4 +1,4 @@
-# Vela Player 1.1.4 (PC / Windows 10-11 64 bits)
+# Vela Player 1.2.0 (PC / Windows 10-11 64 bits)
 
 App de PC com **reprodutor embutido**: o cliente baixa **um único arquivo**
 (`Instalar-Vela-Player.exe`), dá dois cliques e abre pelo atalho. Sem CMD, sem ZIP,
@@ -28,6 +28,12 @@ O build usa Electron 45, cujo suporte oficial é Windows 10 ou posterior, em arq
 1. Crie um repositório **privado** no GitHub e envie esta pasta inteira.
 2. Aba **Actions → Gerar instalador Windows → Run workflow**.
 3. Baixe `Instalar-Vela-Player.exe` em *Artifacts* no fluxo concluído.
+
+## Novidades da 1.2.0
+- **Explorar funciona:** os atalhos das seções iniciais agora são botões reais, acessíveis por teclado e com destino correto. “Continue descobrindo” abre o histórico completo (até 300 registros, carregados em páginas); “Minha lista” abre os favoritos.
+- **Início mais útil:** atalhos rápidos para Histórico e Busca geral, além de estados vazios com ação para começar a navegar.
+- **80 ajustes visuais e de usabilidade:** contraste e foco, botões/seletores, cartões e pôsteres, contagem e barras de progresso, hero, trilhos horizontais, detalhes/episódios, modais, mensagens, controles do player e responsividade.
+- **Acessibilidade e leveza:** nomes acessíveis para cartões e trilhos, áreas de clique mais claras, suporte a foco/teclado e redução de animações respeitando a preferência do sistema. Sem dependências novas, sem imagens externas adicionadas e sem outro motor de vídeo.
 
 ## Novidades da 1.1.4
 - **Abertura inicial e reconexão diferenciadas:** uma primeira falha de rede em filmes/séries ainda pode tentar o MPV; o fallback só é adiado quando já está no ciclo de reconexão.

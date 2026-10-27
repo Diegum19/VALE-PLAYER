@@ -3,7 +3,7 @@
   const C = window.VelaCore;
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-  const APP_VERSION = '1.1.4';
+  const APP_VERSION = '1.2.0';
 
   // ---- Adaptador de plataforma: no PC usa o Electron; em outras plataformas (TV) usa a web ----
   const P = window.vela || {
@@ -422,11 +422,35 @@
     $('grid').appendChild(frag); S.shown = end;
     $('count').textContent = `${list.length} ${LABEL[S.tab] || ''}`;
     if (S.tab === 'search' && !S.query.trim()) return;
-    setState(list.length === 0 ? (S.filters.genre || S.filters.year || S.filters.minRating ? 'Nenhum resultado com estes filtros. Tente remover um filtro.' : S.tab === 'favs' ? 'Nenhum favorito ainda.' : S.tab === 'history' ? 'Nada assistido ainda.' : 'Nada encontrado.') : (end < list.length ? 'Role para carregar mais…' : ''));
+    if (!list.length && !S.query.trim() && (S.tab === 'history' || S.tab === 'favs')) {
+      const empty = el('section', 'catalog-empty');
+      empty.appendChild(svgIcon(S.tab === 'history' ? 'history' : 'star', 31));
+      empty.appendChild(el('h2', '', S.tab === 'history' ? 'Seu histórico está vazio' : 'Sua lista ainda está vazia'));
+      empty.appendChild(el('p', '', S.tab === 'history'
+        ? 'Os filmes, episódios e canais que você assistir aparecerão aqui.'
+        : 'Guarde seus filmes e séries favoritos para encontrar tudo facilmente.'));
+      const explore = el('button', 'primary focusable catalog-empty-action',
+        S.tab === 'history' ? 'Explorar filmes e séries' : 'Encontrar algo para assistir');
+      explore.type = 'button';
+      explore.onclick = () => selectTab('movie');
+      empty.appendChild(explore);
+      $('state').replaceChildren(empty);
+    } else {
+      setState(list.length === 0
+        ? (S.filters.genre || S.filters.year || S.filters.minRating
+          ? 'Nenhum resultado com estes filtros. Tente remover um filtro.'
+          : S.tab === 'favs' ? 'Nenhum favorito ainda.'
+          : S.tab === 'history' ? 'Nada assistido ainda.'
+          : 'Nada encontrado.')
+        : (end < list.length ? 'Role para carregar mais…' : ''));
+    }
   }
 
   function makeCard(item, idx, resumeEntry) {
     const kind=kindOf(item),b=el('button','card focusable '+(kind==='live'?'live':''));
+    const kindLabel = kind === 'live' ? 'canal ao vivo' : kind === 'series' ? 'série' : kind === 'movie' ? 'filme' : 'conteúdo';
+    b.type = 'button';
+    b.setAttribute('aria-label', `${C.itemName(item)}, ${kindLabel}. Abrir detalhes.`);
     const key=posterKey(kind,item);b.dataset.posterKey=key;
     const art=el('div','img'),fallback=el('span','poster-fallback');fallback.appendChild(svgIcon(ICON[kind]||'play',38));
     const posterImg=el('img','poster-image');posterImg.alt='';posterImg.loading='lazy';posterImg.decoding='async';posterImg.referrerPolicy='no-referrer';posterImg.draggable=false;posterImg.hidden=true;
@@ -599,7 +623,9 @@
       {tab:'movie', icon:'film', label:'Filmes'},
       {tab:'series', icon:'clapperboard', label:'Séries'},
       {tab:'live', icon:'tv', label:'TV ao vivo'},
-      {tab:'favs', icon:'star', label:'Minha lista'}
+      {tab:'favs', icon:'star', label:'Minha lista'},
+      {tab:'history', icon:'history', label:'Histórico'},
+      {tab:'search', icon:'search', label:'Buscar'}
     ]) {
       const b = el('button', 'home-shortcut focusable');
       b.append(svgIcon(item.icon,18), el('span','',item.label), svgIcon('arrowRight',15));
@@ -608,21 +634,44 @@
     }
     home.appendChild(shortcuts);
 
-    const section = (title, nodes, extraClass='') => {
+    const section = (title, nodes, extraClass='', destination='history', fullCount=nodes.length) => {
       if (!nodes.length) return;
       const sec = el('section', 'sec ' + extraClass);
+      sec.setAttribute('aria-label', title);
       const heading = el('div','sec-heading');
       heading.append(el('h3','',title));
-      const hint = el('span','sec-hint','Explorar'); hint.appendChild(svgIcon('arrowRight',14));
-      heading.appendChild(hint); sec.appendChild(heading);
+      const hint = el('button','sec-explore focusable');
+      hint.type = 'button';
+      hint.append(el('span','sec-explore-label','Explorar'), svgIcon('arrowRight',14));
+      const destinationLabel = destination === 'favs' ? 'Minha lista' : 'Histórico completo';
+      hint.setAttribute('aria-label', `Explorar ${title.toLocaleLowerCase('pt-BR')}. Abrir ${destinationLabel}.`);
+      hint.title = `Abrir ${destinationLabel.toLocaleLowerCase('pt-BR')}`;
+      if (Number.isFinite(fullCount) && fullCount > 0) {
+        const countBadge = el('span','sec-count', String(fullCount));
+        countBadge.setAttribute('aria-hidden','true');
+        hint.appendChild(countBadge);
+      }
+      hint.onclick = () => selectTab(destination);
+      heading.appendChild(hint);
+      sec.appendChild(heading);
       const row = el('div', 'hrow');
-      nodes.forEach((n) => row.appendChild(n));
-      sec.appendChild(row); home.appendChild(sec);
+      row.setAttribute('role','list');
+      row.setAttribute('aria-label', title);
+      nodes.forEach((n) => {
+        n.setAttribute('role','listitem');
+        row.appendChild(n);
+      });
+      sec.appendChild(row);
+      home.appendChild(sec);
     };
-    if (cont.length) section('Continue assistindo', cont.map((r) => makeCard({ ...r.item, _kind: r.kind }, 0, r)), 'rail-resume');
-    if (recentVod.length) section('Continue descobrindo', recentVod.map((h) => makeCard({ ...h.item, _kind: h.kind }, 0)), 'rail-recent');
-    if (favorites.length) section('Minha lista', favorites.map((f) => makeCard({ ...f.item, _kind: f.kind }, 0)), 'rail-favorites');
-    if (recentLive.length) section('Seus canais recentes', recentLive.map((h) => makeCard({ ...h.item, _kind: 'live' }, 0)), 'rail-live');
+    const fullRecentVodCount = S.history.filter((h) => h.kind !== 'live' && !hidden(h.kind, h.item)).length;
+    const fullResumeCount = Object.values(S.resume).filter((r) => r && r.item && r.d && !hidden(r.kind, r.item)).length;
+    const fullFavoriteCount = S.favs.filter((f) => !hidden(f.kind, f.item)).length;
+    const fullRecentLiveCount = S.history.filter((h) => h.kind === 'live' && !hidden('live', h.item)).length;
+    if (cont.length) section('Continue assistindo', cont.map((r) => makeCard({ ...r.item, _kind: r.kind }, 0, r)), 'rail-resume', 'history', fullResumeCount);
+    if (recentVod.length) section('Continue descobrindo', recentVod.map((h) => makeCard({ ...h.item, _kind: h.kind }, 0)), 'rail-recent', 'history', fullRecentVodCount);
+    if (favorites.length) section('Minha lista', favorites.map((f) => makeCard({ ...f.item, _kind: f.kind }, 0)), 'rail-favorites', 'favs', fullFavoriteCount);
+    if (recentLive.length) section('Seus canais recentes', recentLive.map((h) => makeCard({ ...h.item, _kind: 'live' }, 0)), 'rail-live', 'history', fullRecentLiveCount);
     if (!cont.length && !recentLive.length && !recentVod.length && !favorites.length) {
       const empty = el('div','home-empty-note');
       empty.append(svgIcon('sailboat',24), el('p','','Sua biblioteca vai ganhar vida conforme você explora.'));
