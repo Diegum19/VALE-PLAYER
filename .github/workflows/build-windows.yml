@@ -76,6 +76,9 @@ jobs:
       - name: Instalar dependências e compilar o motor nativo
         run: npm install --no-audit --no-fund
 
+      - name: Recompilar MPV com cache e recuperação de rede
+        run: node scripts/patch-native-mpv.js
+
       - name: Executar testes
         run: npm test
 

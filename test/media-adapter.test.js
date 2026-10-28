@@ -75,7 +75,10 @@ function createHarness(failForMode) {
     insertBefore() {}
     remove() {}
     async destroy() {}
-    async seek(seconds) { this.currentTime = seconds; }
+    async seek(seconds) {
+      this.currentTime = seconds;
+      this.dispatchEvent({ type: 'mpv-state', detail: { status: 'Paused', time: seconds, duration: this.duration, width: this.videoWidth, height: this.videoHeight } });
+    }
     async setVolume(value) { this.volume = Number(value) / 100; }
     async play() { this.paused = false; this.dispatchEvent({ type: 'mpv-state', detail: { status: 'Playing', paused: false } }); }
     async pause() { this.paused = true; this.dispatchEvent({ type: 'mpv-state', detail: { status: 'Paused', paused: true } }); }
@@ -90,7 +93,9 @@ function createHarness(failForMode) {
         throw new Error(message);
       }
       this.currentTime = 0;
+      this.duration = 3600;
       this.readyState = 4;
+      this.dispatchEvent({ type: 'mpv-state', detail: { status: 'Paused', time: 0, duration: this.duration, width: this.videoWidth, height: this.videoHeight } });
       this.dispatchEvent({ type: 'mpv-event', detail: { type: 'file-loaded' } });
     }
   }
@@ -128,6 +133,12 @@ function createHarness(failForMode) {
   assert.deepEqual(fallback.modes, ['shared-texture', 'webgl', 'canvas2d']);
   assert.equal(fallback.window.VelaMediaAdapter.nativeRenderer, 'canvas2d');
   process.stdout.write('PASS media adapter: shared-texture -> WebGL -> Canvas 2D\n');
+
+  const resume = createHarness(() => '');
+  await resume.window.VelaMediaAdapter.openNative('https://example.invalid/episode.mkv', 2100);
+  assert.ok(Math.abs(resume.window.VelaMediaAdapter.currentTime - 2100) <= 12, 'native MPV confirms resume position before startup resolves');
+  assert.equal(resume.window.VelaMediaAdapter.duration, 3600);
+  process.stdout.write('PASS media adapter: native resume seeks to the requested position before resolving\\n');
 
   const networkFailure = createHarness(() => 'HTTP timeout while opening media URL');
   await assert.rejects(

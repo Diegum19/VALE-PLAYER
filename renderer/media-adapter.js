@@ -11,7 +11,7 @@
   let sourceListeners = [];
   const state = {
     status: 'Idle', time: 0, duration: 0, width: 0, height: 0, codec: '-', fps: 0,
-    source: '', sourceLoaded: false, paused: true, ended: false, error: null, volume: 100,
+    source: '', sourceLoaded: false, paused: true, ended: false, buffering: false, error: null, volume: 100,
   };
   const emptyRanges = {
     length: 0,
@@ -69,12 +69,20 @@
   function resetNativeState() {
     state.status = 'Idle'; state.time = 0; state.duration = 0; state.width = 0; state.height = 0;
     state.codec = '-'; state.fps = 0; state.source = ''; state.sourceLoaded = false;
-    state.paused = true; state.ended = false; state.error = null;
+    state.paused = true; state.ended = false; state.buffering = false; state.error = null;
   }
 
   function onMpvEvent(event) {
     const data = event.detail || {};
-    if (data.type === 'file-loaded') {
+    if (data.name === 'paused-for-cache') {
+      const buffering=!!data.data;
+      const changed=buffering!==state.buffering;
+      state.buffering=buffering;
+      if(changed&&buffering)dispatchMedia('waiting');
+      else if(changed&&!buffering&&state.status==='Playing'&&!state.paused&&state.sourceLoaded)dispatchMedia('playing');
+    } else if (data.name === 'cache-buffering-state') {
+      state.bufferingPercent=Number(data.data)||0;
+    } else if (data.type === 'file-loaded') {
       state.sourceLoaded = true;
       state.error = null;
       state.ended = false;
@@ -111,7 +119,10 @@
       }
     } else if (state.status === 'Paused') {
       state.paused = true;
-      if (previous === 'Playing') dispatchMedia('pause');
+      if (previous === 'Playing') {
+        if(state.buffering)dispatchMedia('waiting');
+        else dispatchMedia('pause');
+      }
     } else if (state.status === 'Ended') {
       state.paused = true;
       state.ended = true;
@@ -178,7 +189,7 @@
     return nativeVideo;
   }
 
-  function waitForNativeLoad(element, timeoutMs = 20000, signal) {
+  function waitForNativeLoad(element, timeoutMs = 30000, signal) {
     if (signal && signal.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
     if (state.sourceLoaded) return Promise.resolve();
     return new Promise((resolve, reject) => {
@@ -207,6 +218,62 @@
     });
   }
 
+  function waitForNativeDuration(element, signal, timeoutMs=1800) {
+    if(Number(state.duration)>0)return Promise.resolve(Number(state.duration));
+    if(signal&&signal.aborted)return Promise.reject(new DOMException('Aborted','AbortError'));
+    return new Promise((resolve,reject)=>{
+      let finished=false;
+      const finish=(error)=>{
+        if(finished)return;
+        finished=true;clearTimeout(timer);
+        element.removeEventListener('mpv-state',onState);
+        if(signal)signal.removeEventListener('abort',onAbort);
+        if(error)reject(error);else resolve(Number(state.duration)>0?Number(state.duration):0);
+      };
+      const onState=()=>{if(Number(state.duration)>0)finish();};
+      const onAbort=()=>finish(new DOMException('Aborted','AbortError'));
+      const timer=setTimeout(()=>finish(),timeoutMs);
+      element.addEventListener('mpv-state',onState);
+      if(signal)signal.addEventListener('abort',onAbort,{once:true});
+    });
+  }
+  function waitForNativePosition(element,target,signal,timeoutMs=4500) {
+    const expected=Number(target);
+    const matches=()=>Number.isFinite(Number(state.time))&&Math.abs(Number(state.time)-expected)<=Math.max(2,Math.min(12,Math.abs(expected)*0.005));
+    if(matches())return Promise.resolve();
+    if(signal&&signal.aborted)return Promise.reject(new DOMException('Aborted','AbortError'));
+    return new Promise((resolve,reject)=>{
+      let finished=false;
+      const finish=(error)=>{
+        if(finished)return;
+        finished=true;clearTimeout(timer);
+        element.removeEventListener('mpv-state',onState);
+        if(signal)signal.removeEventListener('abort',onAbort);
+        if(error)reject(error);else resolve();
+      };
+      const onState=()=>{if(matches())finish();};
+      const onAbort=()=>finish(new DOMException('Aborted','AbortError'));
+      const timer=setTimeout(()=>finish(new Error('O motor MPV não confirmou a retomada na posição solicitada.')),timeoutMs);
+      element.addEventListener('mpv-state',onState);
+      if(signal)signal.addEventListener('abort',onAbort,{once:true});
+    });
+  }
+  async function seekNativeWithConfirmation(element,target,signal) {
+    let lastError=null;
+    for(let attempt=0;attempt<2;attempt++){
+      if(signal&&signal.aborted)throw new DOMException('Aborted','AbortError');
+      try{
+        await element.seek(target);
+        await waitForNativePosition(element,target,signal,4500);
+        return;
+      }catch(error){
+        lastError=error;
+        if(signal&&signal.aborted)throw new DOMException('Aborted','AbortError');
+        if(attempt===0)await new Promise(resolve=>setTimeout(resolve,200));
+      }
+    }
+    throw lastError||new Error('O motor MPV não confirmou a retomada na posição solicitada.');
+  }
   async function openNative(url, startAt = 0, signal) {
     // Fallbacks de renderização: GPU compartilhada -> WebGL -> Canvas 2D por software.
     const modes = ['shared-texture', 'webgl', 'canvas2d'];
@@ -229,13 +296,15 @@
         state.height = 0;
         state.paused = true;
         state.ended = false;
-        const loaded = waitForNativeLoad(element, 20000, signal);
+        state.buffering = false;
+        const loaded = waitForNativeLoad(element, 30000, signal);
         await Promise.all([element.open(url), loaded]);
         if (signal && signal.aborted) throw new DOMException('Aborted', 'AbortError');
         if (Number(startAt) > 5) {
+          await waitForNativeDuration(element,signal,1800);
           const duration = Number(state.duration);
           const target = duration > 0 ? Math.min(Number(startAt), Math.max(0, duration - 0.25)) : Number(startAt);
-          await element.seek(Math.max(0, target));
+          await seekNativeWithConfirmation(element,Math.max(0,target),signal);
         }
         if (signal && signal.aborted) throw new DOMException('Aborted', 'AbortError');
         return;
