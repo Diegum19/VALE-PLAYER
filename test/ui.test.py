@@ -131,10 +131,37 @@ try:
             try:
                 matrix_pg = matrix_context.new_page()
                 matrix_pg.on('pageerror', lambda error, width=width: viewport_errors.append(f'{width}px: {error}'))
-                matrix_pg.goto('http://localhost:8098/index.html')
-                matrix_pg.wait_for_selector('#player')
+                # Renderiza só a casca do player com o CSS de produção: a matriz testa
+                # geometria/estilo, não precisa autenticar de novo em cada viewport.
+                if 'player_test_css' not in globals():
+                    with open(os.path.join(root, 'renderer', 'app.css'), encoding='utf-8') as css_file:
+                        player_test_css = css_file.read()
+                if 'player_test_markup' not in globals():
+                    player_test_markup = (
+                        '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'
+                        '<meta name="viewport" content="width=device-width, initial-scale=1"><style>'
+                        + player_test_css +
+                        '</style><style>html,body{margin:0;width:100%;height:100%;overflow:hidden}'
+                        '#player{display:block!important}</style></head><body>'
+                        '<div id="player"><video id="video" playsinline></video>'
+                        '<div id="ptop"><button class="player-back">Voltar</button><span id="ptitle">Teste de reprodução</span>'
+                        '<button class="icon-button">Favorito</button></div><div id="pinfo" class="hidden"></div>'
+                        '<div id="pnum" class="hidden"></div><div id="pmsg"></div>'
+                        '<div id="playerControls" class="player-controls"><div id="seekArea" class="seek-area">'
+                        '<input id="seek" class="seek-slider" type="range" min="0" max="1000" value="250">'
+                        '<div class="player-time"><span>0:07</span><span>0:30</span></div></div>'
+                        '<div class="player-controls-row"><div class="player-main-actions">'
+                        '<button id="skipBack" class="player-action skip-action">Voltar</button>'
+                        '<button id="playPause" class="player-action primary">Play</button>'
+                        '<button id="skipForward" class="player-action skip-action">Avançar</button></div>'
+                        '<div class="player-secondary-actions"><label id="qualityWrap" class="quality-control hidden">'
+                        '<select id="quality"><option>Automática</option></select></label>'
+                        '<label class="volume-control"><span>Volume</span><input id="volume" type="range" min="0" max="1" value="1"></label>'
+                        '<button id="pFullscreen" class="player-action">Tela cheia</button></div></div></div></div>'
+                        '</body></html>'
+                    )
+                matrix_pg.set_content(player_test_markup)
                 matrix_pg.evaluate("""() => {
-                  document.getElementById('player').classList.remove('hidden');
                   document.getElementById('ptop').classList.remove('idle');
                   document.getElementById('playerControls').classList.remove('idle');
                 }""")
