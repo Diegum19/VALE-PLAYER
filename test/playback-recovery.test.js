@@ -38,4 +38,4 @@ assert.equal(R.shouldTrackPlaybackTime({currentTime:100,lastKnownTime:2100,start
   'unexpected backward jumps are ignored');
 assert.equal(R.shouldTrackPlaybackTime({currentTime:2150,lastKnownTime:2148,started:true}),true);
 assert.equal(R.clampTime(999,100),99.75);
-console.log('playback recovery: all regression tests passed (15 assertions)');
+console.log('playback recovery: all regression tests passed (16 assertions)');

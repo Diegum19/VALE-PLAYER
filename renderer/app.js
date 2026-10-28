@@ -1302,6 +1302,7 @@
       const time=recoveryPosition(p);
       const wasPaused=p.desiredPaused===true;
       p.chromiumFallbackTried=true;
+      p.runtimeRecovering=true;
       $('pmsg').textContent='Tentando outro motor a partir de '+C.fmtTime(time)+'…';
       $('ptop').classList.remove('idle');$('playerControls').classList.remove('idle');
       clearTimeout(p.recoverTimer);
@@ -1318,6 +1319,7 @@
     if(p.engine!=='mpv'&&!p.skipNativeFallback&&C.shouldUseNativeFallbackAfterRuntimeError(p.kind,reason,p.runtimeRetries,p.nativeTried,p.nativeFallbackBlocked)&&await V.nativeAvailable()){
       if(!isCurrentPlayback(p)||p.nativeTried)return;
       p.nativeTried=true;
+      p.runtimeRecovering=true;
       const time=recoveryPosition(p);
       $('pmsg').textContent='Tentando motor nativo para recuperar a reprodução…';
       $('ptop').classList.remove('idle');$('playerControls').classList.remove('idle');
@@ -1328,7 +1330,7 @@
       return;
     }
     const nextTry = (Number(p.runtimeRetries) || 0) + 1;
-    if (nextTry > 2) {
+    if (nextTry > 3) {
       p.lastPlaybackError = reason || p.lastPlaybackError || 'network';
       $('pmsg').textContent = playbackErrorMessage(p.lastPlaybackError);
       $('ptop').classList.remove('idle'); $('playerControls').classList.remove('idle');
@@ -1343,7 +1345,7 @@
     const retryDelay = reason==='network'||reason==='timeout' ? Math.min(2500,500+nextTry*500) : 650;
     p.recoverTimer = setTimeout(() => {
       if (!isCurrentPlayback(p)) return;
-      play(p.kind, p.item, p.episode, p.title, { list:p.list, idx:p.idx, returnToDetail:p.returnToDetail, returnSeason:p.returnSeason, returnEpisodeId:p.returnEpisodeId, seriesSeasons:p.seriesSeasons, startAt:time, runtimeRetries:nextTry, pauseAfterRecovery:p.desiredPaused===true, forceMpv:p.engine==='mpv'||p.nativeTried });
+      play(p.kind, p.item, p.episode, p.title, { list:p.list, idx:p.idx, returnToDetail:p.returnToDetail, returnSeason:p.returnSeason, returnEpisodeId:p.returnEpisodeId, seriesSeasons:p.seriesSeasons, startAt:time, runtimeRetries:nextTry, pauseAfterRecovery:p.desiredPaused===true, forceMpv:p.skipNativeFallback?false:(p.engine==='mpv'||p.nativeTried), skipNativeFallback:p.skipNativeFallback, chromiumFallbackTried:p.chromiumFallbackTried });
     }, retryDelay);
   }
   V.addEventListener('error', () => {
@@ -1413,7 +1415,7 @@
     cleanup(p);
     resetVideo();
     if(kind==='live'&&['network','timeout'].includes(p.lastPlaybackError)&&Number(opts.retries||0)<3){runtimeError(p,p.lastPlaybackError);return;}
-    if(kind!=='live'&&p.runtimeRetries>0&&p.runtimeRetries<2){runtimeError(p,p.lastPlaybackError||'network');return;}
+    if(kind!=='live'&&!started&&p.runtimeRetries<3&&(p.runtimeRetries>0||p.nativeTried||opts.forceMpv)){runtimeError(p,p.lastPlaybackError||'network');return;}
     const finalError=p.nativePlaybackError&&p.nativeTried
       ? playbackErrorMessage('native')+' '+playbackErrorMessage(p.lastPlaybackError)
       : playbackErrorMessage(p.lastPlaybackError);
