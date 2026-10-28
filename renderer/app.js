@@ -1281,7 +1281,7 @@
   async function runtimeError(p, reason = 'network') {
     if (p !== pl || p.stopped || p.runtimeRecovering) return;
     if (p.kind === 'live') {
-      if(p.engine!=='mpv'&&C.shouldUseNativeFallbackAfterRuntimeError(p.kind,reason,p.retries,p.nativeTried,p.nativeFallbackBlocked)&&await V.nativeAvailable()){
+      if(p.engine!=='mpv'&&!p.skipNativeFallback&&C.shouldUseNativeFallbackAfterRuntimeError(p.kind,reason,p.retries,p.nativeTried,p.nativeFallbackBlocked)&&await V.nativeAvailable()){
         if(!isCurrentPlayback(p)||p.nativeTried)return;
         p.nativeTried=true;
         const wasPaused=p.desiredPaused===true;
@@ -1298,7 +1298,24 @@
       p.recoverTimer = setTimeout(() => { if (isCurrentPlayback(p)) play(p.kind, p.item, p.episode, p.title, { list: p.list, idx: p.idx, retries: p.retries, forceMpv:p.engine==='mpv'||p.nativeTried }); }, 1500);
       return;
     }
-    if(p.engine!=='mpv'&&C.shouldUseNativeFallbackAfterRuntimeError(p.kind,reason,p.runtimeRetries,p.nativeTried,p.nativeFallbackBlocked)&&await V.nativeAvailable()){
+    if(p.kind!=='live'&&p.engine==='mpv'&&p.nativeTried&&!p.skipNativeFallback&&!p.chromiumFallbackTried&&['network','timeout','native'].includes(reason)){
+      const time=recoveryPosition(p);
+      const wasPaused=p.desiredPaused===true;
+      p.chromiumFallbackTried=true;
+      $('pmsg').textContent='Tentando outro motor a partir de '+C.fmtTime(time)+'…';
+      $('ptop').classList.remove('idle');$('playerControls').classList.remove('idle');
+      clearTimeout(p.recoverTimer);
+      p.recoverTimer=setTimeout(()=>{
+        if(isCurrentPlayback(p))play(p.kind,p.item,p.episode,p.title,{
+          list:p.list,idx:p.idx,returnToDetail:p.returnToDetail,returnSeason:p.returnSeason,
+          returnEpisodeId:p.returnEpisodeId,seriesSeasons:p.seriesSeasons,startAt:time,
+          runtimeRetries:Math.max(1,Number(p.runtimeRetries)||0),pauseAfterRecovery:wasPaused,
+          forceMpv:false,skipNativeFallback:true,chromiumFallbackTried:true
+        });
+      },400);
+      return;
+    }
+    if(p.engine!=='mpv'&&!p.skipNativeFallback&&C.shouldUseNativeFallbackAfterRuntimeError(p.kind,reason,p.runtimeRetries,p.nativeTried,p.nativeFallbackBlocked)&&await V.nativeAvailable()){
       if(!isCurrentPlayback(p)||p.nativeTried)return;
       p.nativeTried=true;
       const time=recoveryPosition(p);
@@ -1343,7 +1360,7 @@
     const rkey = C.resumeKey(kind, item, episode);
     const list = opts.list || null;
     const idx = list ? list.findIndex((x) => C.itemId(x) === C.itemId(item)) : -1;
-    const p = (pl = { generation:playbackGeneration, attemptSeq:0, cancelAttempt:null, desiredPaused:opts.pauseAfterRecovery===true, engine:opts.forceMpv?'mpv':'chromium', nativeTried:opts.forceMpv===true, nativePlaybackError:'', nativeFallbackBlocked:false, kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, dash: null, stopped: false, lastPlaybackError: '', returnToDetail:!!opts.returnToDetail, returnSeason:opts.returnSeason||null, returnEpisodeId:opts.returnEpisodeId||'', seriesSeasons:Array.isArray(opts.seriesSeasons)?opts.seriesSeasons:null, nextEpisode:null, nextEpisodeResolved:false, nextEpisodeLoading:false, nextEpisodePromise:null, nextDismissed:false, nextAutoTriggered:false, startAt:0,startAtExplicit:Number.isFinite(Number(opts.startAt)),lastKnownTime:0,lastKnownDuration:0,pendingSeekTarget:0,positionSeekPending:false,runtimeRetries:Number(opts.runtimeRetries)||0, runtimeRecovering:false, recoverTimer:null });
+    const p = (pl = { generation:playbackGeneration, attemptSeq:0, cancelAttempt:null, desiredPaused:opts.pauseAfterRecovery===true, engine:opts.forceMpv?'mpv':'chromium', nativeTried:opts.forceMpv===true, nativePlaybackError:'', nativeFallbackBlocked:false, skipNativeFallback:opts.skipNativeFallback===true, chromiumFallbackTried:opts.chromiumFallbackTried===true, kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, dash: null, stopped: false, lastPlaybackError: '', returnToDetail:!!opts.returnToDetail, returnSeason:opts.returnSeason||null, returnEpisodeId:opts.returnEpisodeId||'', seriesSeasons:Array.isArray(opts.seriesSeasons)?opts.seriesSeasons:null, nextEpisode:null, nextEpisodeResolved:false, nextEpisodeLoading:false, nextEpisodePromise:null, nextDismissed:false, nextAutoTriggered:false, startAt:0,startAtExplicit:Number.isFinite(Number(opts.startAt)),lastKnownTime:0,lastKnownDuration:0,pendingSeekTarget:0,positionSeekPending:false,runtimeRetries:Number(opts.runtimeRetries)||0, runtimeRecovering:false, recoverTimer:null });
     $('player').classList.remove('hidden'); $('ptitle').textContent = title;
     $('pmsg').textContent = 'Carregando…'; $('pback').focus(); updatePlayerFav(); seekDragging=false;$('seek').value='0';$('qualityWrap').classList.add('hidden');$('quality').replaceChildren(new Option('Automática','-1'));updatePlayerUI();$('playerControls').classList.remove('idle');$('ptop').classList.remove('idle');
     $('pinfo').classList.add('hidden'); hideNextEpisodePrompt();
@@ -1386,7 +1403,7 @@
     if(opts.forceMpv)started=await tryEngine('mpv');
     else started=await tryEngine('chromium');
     const networkRetryDeferred=C.shouldDeferNativeFallbackForStartup(kind,p.lastPlaybackError,kind==='live'?opts.retries:opts.runtimeRetries);
-    if(!started&&!opts.forceMpv&&!p.stopped&&!networkRetryDeferred&&C.shouldUseNativeFallback(kind,p.lastPlaybackError,p.nativeTried,p.nativeFallbackBlocked)&&await V.nativeAvailable()){
+    if(!started&&!opts.forceMpv&&!opts.skipNativeFallback&&!p.stopped&&!networkRetryDeferred&&C.shouldUseNativeFallback(kind,p.lastPlaybackError,p.nativeTried,p.nativeFallbackBlocked)&&await V.nativeAvailable()){
       p.nativeTried=true;
       $('pmsg').textContent='Tentando motor nativo para ampliar a compatibilidade…';
       started=await tryEngine('mpv');
