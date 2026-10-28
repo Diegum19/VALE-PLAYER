@@ -1,4 +1,4 @@
-# Vela Player 1.2.0 (PC / Windows 10-11 64 bits)
+# Vela Player 1.2.1 (PC / Windows 10-11 64 bits)
 
 App de PC com **reprodutor embutido**: o cliente baixa **um único arquivo**
 (`Instalar-Vela-Player.exe`), dá dois cliques e abre pelo atalho. Sem CMD, sem ZIP,
@@ -28,6 +28,12 @@ O build usa Electron 45, cujo suporte oficial é Windows 10 ou posterior, em arq
 1. Crie um repositório **privado** no GitHub e envie esta pasta inteira.
 2. Aba **Actions → Gerar instalador Windows → Run workflow**.
 3. Baixe `Instalar-Vela-Player.exe` em *Artifacts* no fluxo concluído.
+
+## Novidades da 1.2.1
+- **Imagem sem escurecimento artificial:** removida a vinheta preta de tela inteira e os gradientes escuros que cobriam as bordas superior e inferior do vídeo. Os controles mantêm apenas seus próprios fundos discretos, sem uma faixa escura por toda a tela.
+- **Sem sombras pretas sobre os elementos do vídeo:** removidas as sombras de texto do título, mensagens e número do canal.
+- **Regressão visual automatizada:** dezenas de resoluções são verificadas no Playwright, com centenas de asserções sobre sobreposições, dimensões, posicionamento e barra de progresso.
+- **Teste estrutural do player:** o comando de testes verifica que a vinheta e os gradientes de tela inteira não retornam numa mudança futura de CSS. Nenhuma dependência nova foi adicionada.
 
 ## Novidades da 1.2.0
 - **Explorar funciona:** os atalhos das seções iniciais agora são botões reais, acessíveis por teclado e com destino correto. “Continue descobrindo” abre o histórico completo (até 300 registros, carregados em páginas); “Minha lista” abre os favoritos.
