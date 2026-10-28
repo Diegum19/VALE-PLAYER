@@ -986,7 +986,7 @@
     return R.recoveryPosition({
       currentTime:Number(V.currentTime),duration,
       lastKnownTime:p.lastKnownTime,startAt:p.startAt,resumeTime:saved.t,
-      started:p.started,positionSeekPending:p.positionSeekPending,
+      started:p.started,startAtExplicit:p.startAtExplicit,positionSeekPending:p.positionSeekPending,
       pendingSeekTarget:p.pendingSeekTarget
     });
   }
@@ -1343,7 +1343,7 @@
     const rkey = C.resumeKey(kind, item, episode);
     const list = opts.list || null;
     const idx = list ? list.findIndex((x) => C.itemId(x) === C.itemId(item)) : -1;
-    const p = (pl = { generation:playbackGeneration, attemptSeq:0, cancelAttempt:null, desiredPaused:opts.pauseAfterRecovery===true, engine:opts.forceMpv?'mpv':'chromium', nativeTried:opts.forceMpv===true, nativePlaybackError:'', nativeFallbackBlocked:false, kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, dash: null, stopped: false, lastPlaybackError: '', returnToDetail:!!opts.returnToDetail, returnSeason:opts.returnSeason||null, returnEpisodeId:opts.returnEpisodeId||'', seriesSeasons:Array.isArray(opts.seriesSeasons)?opts.seriesSeasons:null, nextEpisode:null, nextEpisodeResolved:false, nextEpisodeLoading:false, nextEpisodePromise:null, nextDismissed:false, nextAutoTriggered:false, startAt:0,lastKnownTime:0,lastKnownDuration:0,pendingSeekTarget:0,positionSeekPending:false,runtimeRetries:Number(opts.runtimeRetries)||0, runtimeRecovering:false, recoverTimer:null });
+    const p = (pl = { generation:playbackGeneration, attemptSeq:0, cancelAttempt:null, desiredPaused:opts.pauseAfterRecovery===true, engine:opts.forceMpv?'mpv':'chromium', nativeTried:opts.forceMpv===true, nativePlaybackError:'', nativeFallbackBlocked:false, kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, dash: null, stopped: false, lastPlaybackError: '', returnToDetail:!!opts.returnToDetail, returnSeason:opts.returnSeason||null, returnEpisodeId:opts.returnEpisodeId||'', seriesSeasons:Array.isArray(opts.seriesSeasons)?opts.seriesSeasons:null, nextEpisode:null, nextEpisodeResolved:false, nextEpisodeLoading:false, nextEpisodePromise:null, nextDismissed:false, nextAutoTriggered:false, startAt:0,startAtExplicit:Number.isFinite(Number(opts.startAt)),lastKnownTime:0,lastKnownDuration:0,pendingSeekTarget:0,positionSeekPending:false,runtimeRetries:Number(opts.runtimeRetries)||0, runtimeRecovering:false, recoverTimer:null });
     $('player').classList.remove('hidden'); $('ptitle').textContent = title;
     $('pmsg').textContent = 'Carregando…'; $('pback').focus(); updatePlayerFav(); seekDragging=false;$('seek').value='0';$('qualityWrap').classList.add('hidden');$('quality').replaceChildren(new Option('Automática','-1'));updatePlayerUI();$('playerControls').classList.remove('idle');$('ptop').classList.remove('idle');
     $('pinfo').classList.add('hidden'); hideNextEpisodePrompt();

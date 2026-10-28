@@ -115,7 +115,7 @@
       state.ended = false;
       if (previous !== 'Playing') {
         dispatchMedia('play');
-        if (state.sourceLoaded) dispatchMedia('playing');
+        if (state.sourceLoaded && !state.buffering) dispatchMedia('playing');
       }
     } else if (state.status === 'Paused') {
       state.paused = true;

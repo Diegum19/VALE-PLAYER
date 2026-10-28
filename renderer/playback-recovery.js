@@ -11,11 +11,13 @@
     const duration=Number(input.duration)>0?Number(input.duration):0;
     if(input.positionSeekPending&&finiteNonNegative(input.pendingSeekTarget))
       return clampTime(input.pendingSeekTarget,duration);
+    if(input.started!==true&&input.startAtExplicit===true&&Number(input.startAt)===0)
+      return 0;
     const current=Number(input.currentTime);
     const last=Number(input.lastKnownTime);
     const hasCurrent=finiteNonNegative(current);
     const hasLast=finiteNonNegative(last);
-    if(input.started===true&&hasCurrent&&!(hasLast&&last>current+30))
+    if(input.started===true&&hasCurrent&&!(hasLast&&last>current+3))
       return clampTime(current,duration);
     if(hasLast&&last>0)return clampTime(last,duration);
     const start=Number(input.startAt);
@@ -35,7 +37,7 @@
       return Math.abs(current-target)<=tolerance;
     }
     const last=Number(input.lastKnownTime);
-    if(finiteNonNegative(last)&&last>current+30)return false;
+    if(finiteNonNegative(last)&&last>current+3)return false;
     return true;
   }
   root.VelaPlaybackRecovery=Object.freeze({recoveryPosition,shouldTrackPlaybackTime,clampTime});
