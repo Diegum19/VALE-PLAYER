@@ -1,4 +1,4 @@
-# Componentes de terceiros — Vela Player 1.2.1
+# Componentes de terceiros — Vela Player 1.2.2
 
 ## electron-mpv-video
 

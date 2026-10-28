@@ -1,4 +1,4 @@
-# Vela Player 1.2.1 (PC / Windows 10-11 64 bits)
+# Vela Player 1.2.2 (PC / Windows 10-11 64 bits)
 
 App de PC com **reprodutor embutido**: o cliente baixa **um único arquivo**
 (`Instalar-Vela-Player.exe`), dá dois cliques e abre pelo atalho. Sem CMD, sem ZIP,
@@ -28,6 +28,16 @@ O build usa Electron 45, cujo suporte oficial é Windows 10 ou posterior, em arq
 1. Crie um repositório **privado** no GitHub e envie esta pasta inteira.
 2. Aba **Actions → Gerar instalador Windows → Run workflow**.
 3. Baixe `Instalar-Vela-Player.exe` em *Artifacts* no fluxo concluído.
+
+## Novidades da 1.2.2
+- **Retomada protegida contra reinício de posição:** o app guarda o último tempo confirmado e não aceita o zero temporário de uma nova tentativa como se fosse o ponto real do episódio.
+- **Busca nativa confirmada:** ao retomar no MPV, o player espera a duração quando disponível e confirma a posição solicitada; se o seek não for confirmado, tenta novamente em vez de continuar silenciosamente do começo.
+- **Buffer de rede no libmpv:** recompilação do motor com cache de vídeo, pausa de buffering, tempo de rede e retentativas limitadas para falhas recuperáveis em conexões HTTP seekable.
+- **Reconexão com limite e espera progressiva:** mais uma tentativa de recuperação para VOD, com atraso crescente para erros de rede/timeout; não cria loop infinito.
+- **Testes de regressão novos:** posições salvas, zero desatualizado, buscas manuais, confirmação do seek nativo e inicialização do MPV com ponto de retomada.
+- **Correção de identificação da versão:** o diagnóstico agora reporta 1.2.2.
+
+**Limite realista:** o aplicativo pode recuperar melhor interrupções temporárias, mas um servidor IPTV fora do ar, um link vencido, uma resposta de acesso recusado ou um fluxo sem suporte ainda pode impedir a reprodução. O CI valida o motor local e os testes simulados; não consegue testar seu servidor particular.
 
 ## Novidades da 1.2.1
 - **Imagem sem escurecimento artificial:** removida a vinheta preta de tela inteira e os gradientes escuros que cobriam as bordas superior e inferior do vídeo. Os controles mantêm apenas seus próprios fundos discretos, sem uma faixa escura por toda a tela.

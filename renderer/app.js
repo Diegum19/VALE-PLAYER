@@ -3,7 +3,7 @@
   const C = window.VelaCore;
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
-  const APP_VERSION = '1.2.0';
+  const APP_VERSION = '1.2.2';
 
   // ---- Adaptador de plataforma: no PC usa o Electron; em outras plataformas (TV) usa a web ----
   const P = window.vela || {
@@ -972,12 +972,33 @@
 
   // ---- Reprodutor embutido ----
   const V=window.VelaMediaAdapter;
+  const R=window.VelaPlaybackRecovery;
   if(!V)throw new Error('Adaptador de mídia não foi carregado.');
+  if(!R)throw new Error('Módulo de recuperação de reprodução não foi carregado.');
   let pl=null,playbackGeneration=0,hideTimer=null,epgTimer=null,numBuf='',numTimer=null,seekDragging=false,playerFullscreen=false;
   let nativeAvailabilityCache='Verificando';
   V.nativeAvailable().then((available)=>{nativeAvailabilityCache=available?'Sim':'Não';}).catch(()=>{nativeAvailabilityCache='Não';});
   function awaitNativeDiagnostic(){return nativeAvailabilityCache;}
   function isCurrentPlayback(p){return !!p&&pl===p&&!p.stopped&&p.generation===playbackGeneration;}
+  function recoveryPosition(p){
+    const saved=S.resume[p.rkey]||{};
+    const duration=Number(V.duration)>0?Number(V.duration):Number(p.lastKnownDuration||saved.d);
+    return R.recoveryPosition({
+      currentTime:Number(V.currentTime),duration,
+      lastKnownTime:p.lastKnownTime,startAt:p.startAt,resumeTime:saved.t,
+      started:p.started,positionSeekPending:p.positionSeekPending,
+      pendingSeekTarget:p.pendingSeekTarget
+    });
+  }
+  function expectPlaybackPosition(p,target){
+    if(!p)return R.clampTime(target,Number(V.duration)||0);
+    const duration=Number(V.duration)>0?Number(V.duration):Number(p.lastKnownDuration||0);
+    const expected=R.clampTime(target,duration);
+    p.pendingSeekTarget=expected;
+    p.positionSeekPending=true;
+    p.lastKnownTime=expected;
+    return expected;
+  }
   function isCurrentNativeSource(p){
     if(!isCurrentPlayback(p)||!p.currentUrl)return false;
     if(p.engine==='mpv')return !!V.currentSrc;
@@ -1011,7 +1032,7 @@
     bumpUi();
   });
   $('seek').addEventListener('input',()=>{seekDragging=true;refreshTimeline();bumpUi();});
-  $('seek').addEventListener('change',()=>{if(pl&&pl.kind!=='live'&&Number.isFinite(V.duration)&&V.duration>0){const target=(Number($('seek').value)/1000)*V.duration;try{V.currentTime=Math.min(V.duration,Math.max(0,target));}catch{toast('Não foi possível buscar esta posição no vídeo.');}}seekDragging=false;refreshTimeline();bumpUi();});
+  $('seek').addEventListener('change',()=>{if(pl&&pl.kind!=='live'&&Number.isFinite(V.duration)&&V.duration>0){const target=(Number($('seek').value)/1000)*V.duration;try{V.currentTime=expectPlaybackPosition(pl,Math.min(V.duration,Math.max(0,target)));}catch{toast('Não foi possível buscar esta posição no vídeo.');}}seekDragging=false;refreshTimeline();bumpUi();});
   function setDesiredPlayback(shouldPlay){
     const p=pl;
     if(p&&!p.stopped)p.desiredPaused=!shouldPlay;
@@ -1033,7 +1054,7 @@
     const duration = Number(V.duration), current = Number(V.currentTime);
     if (!Number.isFinite(duration) || duration <= 0 || !Number.isFinite(current)) return false;
     const target = Math.min(duration, Math.max(0, current + delta));
-    try { V.currentTime = target; return true; } catch { toast('Não foi possível buscar esta posição no vídeo.'); return false; }
+    try { V.currentTime = expectPlaybackPosition(pl,target); return true; } catch { toast('Não foi possível buscar esta posição no vídeo.'); return false; }
   }
   $('skipBack').addEventListener('click',()=>{seekBy(-10);bumpUi();});
   $('skipForward').addEventListener('click',()=>{seekBy(10);bumpUi();});
@@ -1041,6 +1062,21 @@
   $('pFullscreen').addEventListener('click',()=>togglePlayerFullscreen());
   for(const event of ['timeupdate','durationchange','loadedmetadata','progress','seeked'])V.addEventListener(event,refreshTimeline);
   V.addEventListener('timeupdate', () => {const p=pl;if(isCurrentPlayback(p)&&p.started)updateNextEpisodePrompt(p);});
+  V.addEventListener('timeupdate',()=>{
+    const p=pl;
+    if(!isCurrentPlayback(p)||!p.started||p.kind==='live')return;
+    if(Number(V.duration)>0)p.lastKnownDuration=Number(V.duration);
+    const currentTime=Number(V.currentTime);
+    if(R.shouldTrackPlaybackTime({
+      currentTime,lastKnownTime:p.lastKnownTime,
+      positionSeekPending:p.positionSeekPending,pendingSeekTarget:p.pendingSeekTarget,
+      started:p.started
+    })){
+      p.lastKnownTime=currentTime;
+      p.pendingSeekTarget=currentTime;
+      p.positionSeekPending=false;
+    }
+  });
   V.addEventListener('durationchange', () => {const p=pl;if(isCurrentPlayback(p)&&p.started)updateNextEpisodePrompt(p);});
   V.addEventListener('seeked', () => {const p=pl;if(isCurrentPlayback(p)&&p.started)updateNextEpisodePrompt(p);});
   V.addEventListener('ended', () => {
@@ -1133,7 +1169,7 @@
         const duration=Number(V.duration);
         if(!Number.isFinite(duration)||duration<=0)return;
         const target=Math.max(0,Math.min(Number(startAt),Math.max(0,duration-0.25)));
-        try{if(Math.abs(V.currentTime-target)>2)V.currentTime=target;}catch{}
+        try{if(Math.abs(V.currentTime-target)>2)V.currentTime=expectPlaybackPosition(p,target);}catch{}
       };
       const onErr=(event)=>{
         if(!active())return;
@@ -1146,7 +1182,7 @@
         if(!isCurrentNativeSource(p))return;
         fail(reason);
       };
-      const timer=setTimeout(()=>fail('timeout'),20000);
+      const timer=setTimeout(()=>fail('timeout'),mode==='mpv'?45000:20000);
       p.cancelAttempt=cancel;
       p.sourceLoadStarted=false;
       V.addEventListener('playing',onPlaying);
@@ -1265,7 +1301,7 @@
     if(p.engine!=='mpv'&&C.shouldUseNativeFallbackAfterRuntimeError(p.kind,reason,p.runtimeRetries,p.nativeTried,p.nativeFallbackBlocked)&&await V.nativeAvailable()){
       if(!isCurrentPlayback(p)||p.nativeTried)return;
       p.nativeTried=true;
-      const time=Number.isFinite(V.currentTime)?Math.max(0,V.currentTime):((S.resume[p.rkey]||{}).t||0);
+      const time=recoveryPosition(p);
       $('pmsg').textContent='Tentando motor nativo para recuperar a reprodução…';
       $('ptop').classList.remove('idle');$('playerControls').classList.remove('idle');
       const wasPaused=p.desiredPaused===true;
@@ -1281,16 +1317,17 @@
       $('ptop').classList.remove('idle'); $('playerControls').classList.remove('idle');
       return;
     }
-    const time = Number.isFinite(V.currentTime) ? Math.max(0, V.currentTime) : ((S.resume[p.rkey] || {}).t || 0);
+    const time = recoveryPosition(p);
     const wasPaused = p.desiredPaused === true;
     p.runtimeRecovering = true; p.lastPlaybackError = reason || 'network';
     $('pmsg').textContent = 'Reconectando o vídeo a partir de ' + C.fmtTime(time) + '…';
     $('ptop').classList.remove('idle'); $('playerControls').classList.remove('idle');
     clearTimeout(p.recoverTimer);
+    const retryDelay = reason==='network'||reason==='timeout' ? Math.min(2500,500+nextTry*500) : 650;
     p.recoverTimer = setTimeout(() => {
       if (!isCurrentPlayback(p)) return;
       play(p.kind, p.item, p.episode, p.title, { list:p.list, idx:p.idx, returnToDetail:p.returnToDetail, returnSeason:p.returnSeason, returnEpisodeId:p.returnEpisodeId, seriesSeasons:p.seriesSeasons, startAt:time, runtimeRetries:nextTry, pauseAfterRecovery:p.desiredPaused===true, forceMpv:p.engine==='mpv'||p.nativeTried });
-    }, 650);
+    }, retryDelay);
   }
   V.addEventListener('error', () => {
     const p=pl;
@@ -1306,7 +1343,7 @@
     const rkey = C.resumeKey(kind, item, episode);
     const list = opts.list || null;
     const idx = list ? list.findIndex((x) => C.itemId(x) === C.itemId(item)) : -1;
-    const p = (pl = { generation:playbackGeneration, attemptSeq:0, cancelAttempt:null, desiredPaused:opts.pauseAfterRecovery===true, engine:opts.forceMpv?'mpv':'chromium', nativeTried:opts.forceMpv===true, nativePlaybackError:'', nativeFallbackBlocked:false, kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, dash: null, stopped: false, lastPlaybackError: '', returnToDetail:!!opts.returnToDetail, returnSeason:opts.returnSeason||null, returnEpisodeId:opts.returnEpisodeId||'', seriesSeasons:Array.isArray(opts.seriesSeasons)?opts.seriesSeasons:null, nextEpisode:null, nextEpisodeResolved:false, nextEpisodeLoading:false, nextEpisodePromise:null, nextDismissed:false, nextAutoTriggered:false, runtimeRetries:Number(opts.runtimeRetries)||0, runtimeRecovering:false, recoverTimer:null });
+    const p = (pl = { generation:playbackGeneration, attemptSeq:0, cancelAttempt:null, desiredPaused:opts.pauseAfterRecovery===true, engine:opts.forceMpv?'mpv':'chromium', nativeTried:opts.forceMpv===true, nativePlaybackError:'', nativeFallbackBlocked:false, kind, item, episode, title, urls, rkey, list, idx, started: false, retries: opts.retries || 0, hls: null, ts: null, dash: null, stopped: false, lastPlaybackError: '', returnToDetail:!!opts.returnToDetail, returnSeason:opts.returnSeason||null, returnEpisodeId:opts.returnEpisodeId||'', seriesSeasons:Array.isArray(opts.seriesSeasons)?opts.seriesSeasons:null, nextEpisode:null, nextEpisodeResolved:false, nextEpisodeLoading:false, nextEpisodePromise:null, nextDismissed:false, nextAutoTriggered:false, startAt:0,lastKnownTime:0,lastKnownDuration:0,pendingSeekTarget:0,positionSeekPending:false,runtimeRetries:Number(opts.runtimeRetries)||0, runtimeRecovering:false, recoverTimer:null });
     $('player').classList.remove('hidden'); $('ptitle').textContent = title;
     $('pmsg').textContent = 'Carregando…'; $('pback').focus(); updatePlayerFav(); seekDragging=false;$('seek').value='0';$('qualityWrap').classList.add('hidden');$('quality').replaceChildren(new Option('Automática','-1'));updatePlayerUI();$('playerControls').classList.remove('idle');$('ptop').classList.remove('idle');
     $('pinfo').classList.add('hidden'); hideNextEpisodePrompt();
@@ -1315,6 +1352,11 @@
     if (!opts.retries) addHistory(kind, item).catch(() => {});
     if (kind === 'live') startEpg(p);
     const startAt = kind === 'live' ? 0 : (Number.isFinite(Number(opts.startAt)) ? Math.max(0, Number(opts.startAt)) : ((S.resume[rkey] || {}).t || 0));
+    p.startAt=startAt;
+    p.lastKnownTime=startAt;
+    p.pendingSeekTarget=startAt;
+    p.positionSeekPending=startAt>5;
+    if(Number(V.duration)>0)p.lastKnownDuration=Number(V.duration);
     async function tryEngine(engine) {
       p.engine=engine;
       V.setEngine(engine);
@@ -1492,11 +1534,14 @@
   }
 
   function saveResume() {
-    if (!pl || pl.kind === 'live' || !V.duration || !isFinite(V.duration)) return;
-    const t = V.currentTime;
-    const keepTail = Math.min(30, Math.max(5, V.duration * 0.05));
-    if (t > 5 && t < V.duration - keepTail) {
-      S.resume[pl.rkey] = { t: Math.floor(t), d: Math.floor(V.duration), kind: pl.kind, item: cleanItem(pl.item), episode: pl.episode ? { id: pl.episode.id, episode_num: pl.episode.episode_num, title: pl.episode.title, container_extension: pl.episode.container_extension, direct_source: pl.episode.direct_source } : null, title: pl.title, season: (/T(\d+)E/.exec(pl.title) || [])[1], at: Date.now() };
+    if (!pl || pl.kind === 'live') return;
+    const saved=S.resume[pl.rkey]||{};
+    const duration=Number(V.duration)>0?Number(V.duration):Number(pl.lastKnownDuration||saved.d);
+    if(!Number.isFinite(duration)||duration<=0)return;
+    const t=recoveryPosition(pl);
+    const keepTail = Math.min(30, Math.max(5, duration * 0.05));
+    if (t > 5 && t < duration - keepTail) {
+      S.resume[pl.rkey] = { t: Math.floor(t), d: Math.floor(duration), kind: pl.kind, item: cleanItem(pl.item), episode: pl.episode ? { id: pl.episode.id, episode_num: pl.episode.episode_num, title: pl.episode.title, container_extension: pl.episode.container_extension, direct_source: pl.episode.direct_source } : null, title: pl.title, season: (/T(\d+)E/.exec(pl.title) || [])[1], at: Date.now() };
     } else delete S.resume[pl.rkey];
     saveLocal('resume', S.resume).catch(() => {});
   }

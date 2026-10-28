@@ -1,8 +1,8 @@
 {
   "name": "vela-player",
   "productName": "Vela Player",
-  "version": "1.2.1",
-  "description": "Vela Player 1.2.1 - vídeo sem vinheta escura e regressão visual testada",
+  "version": "1.2.2",
+  "description": "Vela Player 1.2.2 - retomada de vídeo resiliente e recuperação nativa MPV",
   "main": "main.js",
   "author": "Vela Player",
   "license": "UNLICENSED",
@@ -10,7 +10,7 @@
   "scripts": {
     "vendor": "node scripts/copy-vendor.js",
     "start": "npm run vendor && electron .",
-    "test": "node test/core.test.js && node test/media-adapter.test.js && node test/player-visual.test.js",
+    "test": "node test/core.test.js && node test/media-adapter.test.js && node test/playback-recovery.test.js && node test/player-visual.test.js",
     "dist": "npm run vendor && electron-builder --win --x64 --publish never"
   },
   "dependencies": {
