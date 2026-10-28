@@ -121,64 +121,69 @@ try:
         pg.click('#skipForward'); pg.wait_for_timeout(100)
         check(pg.evaluate("document.getElementById('video').currentTime <= document.getElementById('video').duration"), 'avanço no fim não ultrapassa a duração')
         pg.screenshot(path=os.path.join(here, 'shot-player.png'))
-        # Regressão visual: testar o player com controles visíveis em 28 resoluções.
-        # 13 asserções por resolução = 364 verificações; o teste também detecta se alguém
-        # reintroduzir a vinheta ou os gradientes que escurecem a imagem.
-        pg.evaluate("""() => {
-          document.getElementById('ptop').classList.remove('idle');
-          document.getElementById('playerControls').classList.remove('idle');
-        }""")
+        # Matriz de regressão visual: cada viewport usa um contexto novo para não
+        # tentar redimensionar uma janela que o Chromium possa ter maximizado.
+        # São 13 asserções por tamanho x 28 resoluções = 364 verificações.
+        viewport_errors = []
         for width in [320, 340, 360, 375, 390, 414, 480, 540, 600, 620, 621, 680, 720, 768, 820, 900, 1024, 1100, 1280, 1366, 1440, 1600, 1920, 2048, 2560, 2880, 3440, 3840]:
             height = max(240, min(1200, int(width * 9 / 16)))
-            pg.set_viewport_size({'width': width, 'height': height})
-            visual = pg.evaluate("""() => {
-              const get = (selector) => document.querySelector(selector);
-              const rect = (node) => {
-                const r = node.getBoundingClientRect();
-                return {left:r.left, right:r.right, width:r.width, height:r.height};
-              };
-              const top = get('#ptop'), controls = get('#playerControls');
-              const seek = get('#seek'), main = get('.player-main-actions');
-              const video = get('#video'), player = get('#player');
-              const transparent = (value) => {
-                const parts = value.match(/[\\d.]+/g) || [];
-                return value.startsWith('rgba(') && Number(parts[3]) === 0;
-              };
-              const tr = rect(top), cr = rect(controls), sr = rect(seek), mr = rect(main);
-              return {
-                noVignette: !get('.player-vignette'),
-                noTopGradient: getComputedStyle(top).backgroundImage === 'none',
-                noBottomGradient: getComputedStyle(controls).backgroundImage === 'none',
-                transparentTop: transparent(getComputedStyle(top).backgroundColor),
-                transparentBottom: transparent(getComputedStyle(controls).backgroundColor),
-                noTopShadow: getComputedStyle(top).boxShadow === 'none',
-                noBottomShadow: getComputedStyle(controls).boxShadow === 'none',
-                noVideoFilter: getComputedStyle(video).filter === 'none',
-                playerWidth: Math.abs(player.getBoundingClientRect().width - innerWidth) < 1,
-                topInside: tr.left >= -1 && tr.right <= innerWidth + 1,
-                controlsInside: cr.left >= -1 && cr.right <= innerWidth + 1,
-                mainControlsInside: mr.width > 0 && mr.left >= -1 && mr.right <= innerWidth + 1,
-                seekInside: sr.width > 0 && sr.left >= -1 && sr.right <= innerWidth + 1
-              };
-            }""")
-            check(visual['noVignette'], f'[{width}px] não existe vinheta sobre o vídeo')
-            check(visual['noTopGradient'], f'[{width}px] faixa superior sem gradiente')
-            check(visual['noBottomGradient'], f'[{width}px] faixa inferior sem gradiente')
-            check(visual['transparentTop'], f'[{width}px] cabeçalho transparente')
-            check(visual['transparentBottom'], f'[{width}px] controles inferiores transparentes')
-            check(visual['noTopShadow'], f'[{width}px] cabeçalho sem sombra')
-            check(visual['noBottomShadow'], f'[{width}px] controles sem sombra')
-            check(visual['noVideoFilter'], f'[{width}px] vídeo sem filtro de escurecimento')
-            check(visual['playerWidth'], f'[{width}px] player respeita a largura da janela')
-            check(visual['topInside'], f'[{width}px] cabeçalho dentro da tela')
-            check(visual['controlsInside'], f'[{width}px] controles dentro da tela')
-            check(visual['mainControlsInside'], f'[{width}px] botões centrais dentro da tela')
-            check(visual['seekInside'], f'[{width}px] barra de progresso dentro da tela')
-        pg.set_viewport_size({'width': 1280, 'height': 800})
-        pg.evaluate("""() => {
-          document.getElementById('ptop').classList.remove('idle');
-          document.getElementById('playerControls').classList.remove('idle');
-        }""")
+            matrix_context = b.new_context(viewport={'width': width, 'height': height}, bypass_csp=True)
+            try:
+                matrix_pg = matrix_context.new_page()
+                matrix_pg.on('pageerror', lambda error, width=width: viewport_errors.append(f'{width}px: {error}'))
+                matrix_pg.goto('http://localhost:8098/index.html')
+                matrix_pg.wait_for_selector('#player')
+                matrix_pg.evaluate("""() => {
+                  document.getElementById('player').classList.remove('hidden');
+                  document.getElementById('ptop').classList.remove('idle');
+                  document.getElementById('playerControls').classList.remove('idle');
+                }""")
+                visual = matrix_pg.evaluate("""() => {
+                  const get = (selector) => document.querySelector(selector);
+                  const rect = (node) => {
+                    const r = node.getBoundingClientRect();
+                    return {left:r.left, right:r.right, width:r.width, height:r.height};
+                  };
+                  const top = get('#ptop'), controls = get('#playerControls');
+                  const seek = get('#seek'), main = get('.player-main-actions');
+                  const video = get('#video'), player = get('#player');
+                  const transparent = (value) => {
+                    const parts = value.match(/[\\d.]+/g) || [];
+                    return value.startsWith('rgba(') && Number(parts[3]) === 0;
+                  };
+                  const tr = rect(top), cr = rect(controls), sr = rect(seek), mr = rect(main);
+                  return {
+                    noVignette: !get('.player-vignette'),
+                    noTopGradient: getComputedStyle(top).backgroundImage === 'none',
+                    noBottomGradient: getComputedStyle(controls).backgroundImage === 'none',
+                    transparentTop: transparent(getComputedStyle(top).backgroundColor),
+                    transparentBottom: transparent(getComputedStyle(controls).backgroundColor),
+                    noTopShadow: getComputedStyle(top).boxShadow === 'none',
+                    noBottomShadow: getComputedStyle(controls).boxShadow === 'none',
+                    noVideoFilter: getComputedStyle(video).filter === 'none',
+                    playerWidth: Math.abs(player.getBoundingClientRect().width - innerWidth) < 1,
+                    topInside: tr.left >= -1 && tr.right <= innerWidth + 1,
+                    controlsInside: cr.left >= -1 && cr.right <= innerWidth + 1,
+                    mainControlsInside: mr.width > 0 && mr.left >= -1 && mr.right <= innerWidth + 1,
+                    seekInside: sr.width > 0 && sr.left >= -1 && sr.right <= innerWidth + 1
+                  };
+                }""")
+                check(visual['noVignette'], f'[{width}px] não existe vinheta sobre o vídeo')
+                check(visual['noTopGradient'], f'[{width}px] faixa superior sem gradiente')
+                check(visual['noBottomGradient'], f'[{width}px] faixa inferior sem gradiente')
+                check(visual['transparentTop'], f'[{width}px] cabeçalho transparente')
+                check(visual['transparentBottom'], f'[{width}px] controles inferiores transparentes')
+                check(visual['noTopShadow'], f'[{width}px] cabeçalho sem sombra')
+                check(visual['noBottomShadow'], f'[{width}px] controles sem sombra')
+                check(visual['noVideoFilter'], f'[{width}px] vídeo sem filtro de escurecimento')
+                check(visual['playerWidth'], f'[{width}px] player respeita a largura da janela')
+                check(visual['topInside'], f'[{width}px] cabeçalho dentro da tela')
+                check(visual['controlsInside'], f'[{width}px] controles dentro da tela')
+                check(visual['mainControlsInside'], f'[{width}px] botões centrais dentro da tela')
+                check(visual['seekInside'], f'[{width}px] barra de progresso dentro da tela')
+            finally:
+                matrix_context.close()
+        check(not viewport_errors, 'sem erros JavaScript nas 28 larguras: ' + '; '.join(viewport_errors))
         check(pg.locator('.player-main-actions').locator('button').nth(0).get_attribute('id') == 'skipBack', 'retroceder fica à esquerda')
         check(pg.locator('.player-main-actions').locator('button').nth(1).get_attribute('id') == 'playPause', 'play/pausa fica no centro')
         check(pg.locator('.player-main-actions').locator('button').nth(2).get_attribute('id') == 'skipForward', 'avançar fica à direita')
