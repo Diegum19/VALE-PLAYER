@@ -122,7 +122,7 @@ try:
         check(pg.evaluate("document.getElementById('video').currentTime <= document.getElementById('video').duration"), 'avanço no fim não ultrapassa a duração')
         pg.screenshot(path=os.path.join(here, 'shot-player.png'))
         # Regressão visual: testar o player com controles visíveis em 28 resoluções.
-        # 12 asserções por resolução = 336 verificações; o teste também detecta se alguém
+        # 13 asserções por resolução = 364 verificações; o teste também detecta se alguém
         # reintroduzir a vinheta ou os gradientes que escurecem a imagem.
         pg.evaluate("""() => {
           document.getElementById('ptop').classList.remove('idle');
